@@ -309,7 +309,7 @@ html,body{height:100%;background:#09090B;font-family:'DM Sans',system-ui,sans-se
 //  FIREBASE INIT
 // ═══════════════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -335,6 +335,7 @@ window._fbSignIn = signInWithEmailAndPassword;
 window._fbSignUp = createUserWithEmailAndPassword;
 window._fbSignOut = signOut;
 window._fbOnAuth = onAuthStateChanged;
+window._fbResetPassword = sendPasswordResetEmail;
 
 // Cuando Firebase esté listo, arrancar la app
 window._fbReady = true;
@@ -479,6 +480,20 @@ var SEED={
   ]
 };
 
+var SEED_EMPTY={
+  neg:{nombre:'Mi Negocio'},
+  persona:{nombre:'',apellido:'',email:'',tel:'',dni:'',cargo:''},
+  empresa:{nombre:'',razon:'',cuit:'',iva:'',inicio:'',provincia:'',localidad:'',dir:'',cp:'',web:'',ig:'',fb:'',li:''},
+  pvs:[],cmp:[],mp:[],mpp:[],
+  cme:[],me:[],mep:[],
+  cpt:[],pt:[],rec:[],ptp:[],
+  cli:[],svs:[],cus:[],
+  ped:[],pi:[],
+  emp:[],sueldos:[],
+  cob:[],
+  cgi:[],gi:[]
+};
+
 // ═════════════════════════════════════════════════════
 //  STORAGE — Firebase Firestore
 // ═════════════════════════════════════════════════════
@@ -505,6 +520,9 @@ async function loadD(){
   if(!D.emp)D.emp=[];
   if(!D.sueldos)D.sueldos=[];
   if(!D.ptp)D.ptp=[];
+  if(!D.persona)D.persona={nombre:'',apellido:'',email:'',tel:'',dni:'',cargo:''};
+  if(!D.empresa)D.empresa={nombre:'',razon:'',cuit:'',iva:'',inicio:'',provincia:'',localidad:'',dir:'',cp:'',web:'',ig:'',fb:'',li:''};
+  if(!D.onboarding)D.onboarding={done:false};
 }
 
 function saveD(){
@@ -596,6 +614,7 @@ var NO=null;
 var NRC={ptId:'',items:[],tab:'MP',showAdd:false,addSel:'',addQty:''};
 var _mpModalCb=null; // callback(id) after creating MP from modal
 var _meModalCb=null; // callback(id) after creating ME from modal
+var _cliModalCb=null; // callback(id) after creating cliente from modal
 var SS={pSr:'',pFl:'todos',pRFl:'todos',cTab:'productos',cSr:'',cFl:'todos',clSr:'',clFl:'todos',nSr:'',meSort:'az',recSort:'az',recFl:'todos',recSr:''};
 function goPending(){SS.pFl='pendiente';go('pedidos');}
 
@@ -622,6 +641,20 @@ function chgNOQty(ptid,d){
   ex.q+=d;
   if(ex.q<=0)NO.items=NO.items.filter(function(i){return i.pt!==ptid;});
   renderNO();
+}
+function chgNOQtyDirect(ptid,val){
+  var v=parseInt(val,10);
+  if(isNaN(v)||v<1)return;
+  var ex=NO.items.find(function(i){return i.pt===ptid;});
+  if(!ex)return;
+  ex.q=v;
+  // update cart bar totals without full re-render (avoid focus loss)
+  var cartTotal=NO.items.reduce(function(s,i){return s+i.v*i.q;},0);
+  var cartCount=NO.items.reduce(function(s,i){return s+i.q;},0);
+  var bar=document.getElementById('no-cart-bar-tot');
+  if(bar)bar.textContent=fmt(cartTotal);
+  var hdr=$('H');
+  if(hdr){var hs=hdr.querySelector('.hs,div[style*="font-size:13px"]');if(hs)hs.textContent=cartCount+' prods · '+fmt(cartTotal);}
 }
 function updCliSearch(){
   var inp=$('no-cli-search');
@@ -1370,7 +1403,7 @@ function renderNO(){
     h+='</div>';
     h+='<div class="fg"><label class="fl">Fecha del pedido</label><input class="fi" type="date" value="'+o.fecha+'" onchange="NO.fecha=this.value"></div>';
     h+='<div style="display:flex;gap:8px">';
-    h+='<button class="btn bs2" onclick="go(\'createCliente\')" style="flex:1">+ Cliente nuevo</button>';
+    h+='<button class="btn bs2" onclick="openNewCliModal()" style="flex:1">+ Cliente nuevo</button>';
     h+='<button class="btn bp" id="no-next-btn" '+(o.cliId?'':'disabled')+' onclick="if(NO.cliId){NO.step=2;renderNO()}" style="flex:2">Siguiente →</button>';
     h+='</div>';
   }
@@ -2978,9 +3011,9 @@ function renderEditCliente(){
 }
 function saveEditCli(){
   var cl=D.cli.find(function(c){return c.id===editCliId;});
-  if(!cl){alert('Cliente no encontrado');return;}
+  if(!cl){showToast('❌ Cliente no encontrado');return;}
   var n=($('ecln')&&$('ecln').value||'').trim();
-  if(!n){alert('El nombre es obligatorio');return;}
+  if(!n){showToast('❌ El nombre es obligatorio');return;}
   cl.n=n;
   cl.may=editCliMay!==undefined?editCliMay:cl.may;
   cl.tel=($('eclt')&&$('eclt').value||'');
@@ -2992,7 +3025,8 @@ function saveEditCli(){
     cl.cp=($('eclcp')&&$('eclcp').value||'');
   }
   saveD();
-  go('cliDet',{id:editCliId});
+  go('clientes');
+  setTimeout(function(){showToast('✅ Cliente guardado');},80);
 }
 
 // ═════════════════════════════════════════════════════
@@ -3634,14 +3668,180 @@ function resetData(){
     saveD();go('inicio');
   }
 }
+
+// ═════════════════════════════════════════════════════
+//  ONBOARDING
+// ═════════════════════════════════════════════════════
+var _OB_STEPS=[
+  {emoji:'🎉',title:'¡Bienvenida a Gula!',body:'Tu espacio para gestionar tu negocio gastronómico. Te mostramos cómo empezar en 6 pasos simples.',cta:'Empezar'},
+  {emoji:'🛒',title:'Ingredientes y empaques',body:'En <b>Catálogo</b> podés agregar tus materias primas (harina, manteca, huevos) y los materiales de empaque (cajas, bolsas). Registrá sus precios para costear automáticamente.',cta:'Siguiente →'},
+  {emoji:'🍰',title:'Creá tus productos',body:'Cada producto que vendés vive en <b>Catálogo → Productos</b>. Definí su nombre, categoría y precio de venta.',cta:'Siguiente →'},
+  {emoji:'📋',title:'Armá la receta',body:'Asignale ingredientes y empaques a cada producto. Gula calcula el costo automáticamente y te muestra tu margen de ganancia.',cta:'Siguiente →'},
+  {emoji:'👤',title:'Registrá tus clientes',body:'En <b>Más → Clientes</b> podés guardar tus clientes mayoristas y minoristas. Cuando crees un pedido, los vas a encontrar rápido.',cta:'Siguiente →'},
+  {emoji:'📦',title:'Generá tu primer pedido',body:'Desde el botón <b>+ Nuevo pedido</b> podés armar el pedido, calcular el envío y descargar el remito en PDF.',cta:'Siguiente →'},
+  {emoji:'⚙️',title:'Configurá tu negocio',body:'En <b>Más → Configuración</b> podés completar los datos de tu negocio y persona de contacto.',cta:'¡Empezar a usar Gula!'}
+];
+var _obStep=0;
+
+function checkOnboarding(){
+  if(!D.onboarding||!D.onboarding.done){
+    _obStep=0;
+    setTimeout(showOnboardingOverlay,400);
+  }
+}
+
+function showOnboardingOverlay(){
+  var existing=document.getElementById('ob-overlay');
+  if(existing)existing.remove();
+  var s=_OB_STEPS[_obStep];
+  var isLast=_obStep===_OB_STEPS.length-1;
+  var dots='';
+  for(var i=0;i<_OB_STEPS.length;i++){
+    dots+='<div style="width:'+(i===_obStep?'20px':'8px')+';height:8px;border-radius:4px;background:'+(i===_obStep?'var(--br)':'var(--bd)')+';transition:width .2s"></div>';
+  }
+  var overlay=document.createElement('div');
+  overlay.id='ob-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:950;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .2s ease';
+  overlay.innerHTML='<div style="background:var(--cd);border-radius:28px 28px 0 0;width:100%;max-width:430px;padding:28px 24px 40px;box-shadow:0 -12px 48px rgba(0,0,0,.25)">'
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'
+    +'<button onclick="skipOnboarding()" style="border:none;background:none;color:var(--t3);font-size:13px;cursor:pointer;font-family:DM Sans,sans-serif;padding:4px 8px">Saltar</button>'
+    +'</div>'
+    +'<div style="text-align:center;margin-bottom:24px">'
+    +'<div style="font-size:52px;margin-bottom:16px;line-height:1">'+s.emoji+'</div>'
+    +'<div style="font-size:20px;font-weight:800;color:var(--t1);margin-bottom:10px;letter-spacing:-.3px;font-family:DM Sans,sans-serif">'+s.title+'</div>'
+    +'<div style="font-size:15px;color:var(--t2);line-height:1.5">'+s.body+'</div>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:center;gap:6px;margin-bottom:24px">'+dots+'</div>'
+    +'<button onclick="obNext()" class="btn bp" style="font-size:15px;font-weight:700">'+s.cta+'</button>'
+    +'</div>';
+  document.getElementById('app').appendChild(overlay);
+}
+
+function obNext(){
+  if(_obStep<_OB_STEPS.length-1){
+    _obStep++;
+    var overlay=document.getElementById('ob-overlay');
+    if(overlay)overlay.style.animation='none';
+    showOnboardingOverlay();
+  } else {
+    finishOnboarding();
+  }
+}
+
+function skipOnboarding(){finishOnboarding();}
+
+function finishOnboarding(){
+  var overlay=document.getElementById('ob-overlay');
+  if(overlay)overlay.remove();
+  if(!D.onboarding)D.onboarding={};
+  D.onboarding.done=true;
+  saveD();
+}
+
+function restartOnboarding(){
+  _obStep=0;
+  if(!D.onboarding)D.onboarding={};
+  D.onboarding.done=false;
+  showOnboardingOverlay();
+}
+
 function renderConfig(){
   setH('Configuración','','mas','Más');
-  var h='<div class="p"><div class="sc">Mi negocio</div><div class="bx"><div class="fg"><label class="fl">Nombre del emprendimiento</label><input class="fi" id="cfg-nom" value="'+esc(D.neg.nombre)+'"></div><button class="btn bp" onclick="saveNegocio()" style="padding:10px 16px">Guardar</button></div>';
-  h+='<div class="sc">Datos del prototipo</div>';
-  h+=alrt('i','Los datos se guardan en tu navegador. En la versión final se almacenan en la nube, accesibles desde cualquier dispositivo.');
-  h+='<button class="btn bs2" style="margin-top:8px" onclick="resetData()">🔄 Resetear datos de prueba</button>';
+  var p=D.persona||{};
+  var e=D.empresa||{};
+  var ivaOpts=['Responsable Inscripto','Monotributista','Exento','Consumidor Final'].map(function(v){return '<option'+(p.iva===v?' selected':'')+'>'+v+'</option>';}).join('');
+  var ivaOptsE=['Responsable Inscripto','Monotributista','Exento','Consumidor Final'].map(function(v){return '<option'+(e.iva===v?' selected':'')+'>'+v+'</option>';}).join('');
+  var h='<div class="p">';
+
+  // ── Persona de contacto ──
+  h+='<div class="sc">Persona de contacto</div>';
+  h+='<div class="bx">';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+=fg('Nombre *','<input class="fi" id="cfg-pnombre" value="'+esc(p.nombre||'')+'" placeholder="ej: Lucía">');
+  h+=fg('Apellido *','<input class="fi" id="cfg-papellido" value="'+esc(p.apellido||'')+'" placeholder="ej: García">');
+  h+='</div>';
+  h+=fg('Email *','<input class="fi" type="email" id="cfg-pemail" value="'+esc(p.email||'')+'" placeholder="tu@email.com">');
+  h+=fg('Teléfono *','<input class="fi" type="tel" id="cfg-ptel" value="'+esc(p.tel||'')+'" placeholder="11 1234-5678">');
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+=fg('DNI','<input class="fi" id="cfg-pdni" value="'+esc(p.dni||'')+'" placeholder="ej: 30.123.456">');
+  h+=fg('Cargo / Rol','<input class="fi" id="cfg-pcargo" value="'+esc(p.cargo||'')+'" placeholder="ej: Dueña">');
+  h+='</div>';
+  h+='<button class="btn bp" onclick="savePersona()" style="margin-top:4px">Guardar contacto</button>';
+  h+='</div>';
+
+  // ── Empresa / Negocio ──
+  h+='<div class="sc">Empresa / Negocio</div>';
+  h+='<div class="bx">';
+  h+=fg('Nombre comercial','<input class="fi" id="cfg-enombre" value="'+esc(e.nombre||D.neg.nombre||'')+'" placeholder="ej: Dulces de Lucía">');
+  h+=fg('Razón Social','<input class="fi" id="cfg-erazon" value="'+esc(e.razon||'')+'" placeholder="ej: García Lucía">');
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+=fg('CUIT','<input class="fi" id="cfg-ecuit" value="'+esc(e.cuit||'')+'" placeholder="20-30123456-9">');
+  h+=fg('Condición IVA','<select class="fs" id="cfg-eiva">'+ivaOptsE+'</select>');
+  h+='</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+=fg('Inicio de actividades','<input class="fi" type="date" id="cfg-einicio" value="'+esc(e.inicio||'')+'">');
+  h+=fg('Provincia','<input class="fi" id="cfg-eprovincia" value="'+esc(e.provincia||'')+'" placeholder="ej: CABA">');
+  h+='</div>';
+  h+='<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">';
+  h+=fg('Localidad','<input class="fi" id="cfg-elocalidad" value="'+esc(e.localidad||'')+'" placeholder="ej: Palermo">');
+  h+=fg('Código Postal','<input class="fi" id="cfg-ecp" value="'+esc(e.cp||'')+'" placeholder="1425">');
+  h+='</div>';
+  h+=fg('Dirección','<input class="fi" id="cfg-edir" value="'+esc(e.dir||'')+'" placeholder="ej: Av. Santa Fe 1234">');
+  h+=fg('Sitio web','<input class="fi" type="url" id="cfg-eweb" value="'+esc(e.web||'')+'" placeholder="https://...">');
+  h+='<div class="sc" style="margin-top:4px;margin-bottom:8px">Redes sociales</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+=fg('Instagram','<input class="fi" id="cfg-eig" value="'+esc(e.ig||'')+'" placeholder="@usuario">');
+  h+=fg('Facebook','<input class="fi" id="cfg-efb" value="'+esc(e.fb||'')+'" placeholder="@página">');
+  h+=fg('LinkedIn','<input class="fi" id="cfg-eli" value="'+esc(e.li||'')+'" placeholder="empresa/nombre">');
+  h+='</div>';
+  h+='<button class="btn bp" onclick="saveEmpresa()" style="margin-top:4px">Guardar empresa</button>';
+  h+='</div>';
+
+  // ── Onboarding ──
+  h+='<div class="sc">Ayuda</div>';
+  h+='<div class="bx">';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between">';
+  h+='<div><div style="font-size:14px;font-weight:600;color:var(--t1)">Tour de bienvenida</div><div style="font-size:12px;color:var(--t2);margin-top:2px">Volvé a ver el tutorial inicial</div></div>';
+  h+='<button class="btn bs2" onclick="restartOnboarding()" style="padding:8px 14px;font-size:13px">Ver tutorial</button>';
+  h+='</div>';
+  h+='</div>';
+
   h+='</div>';
   setC(h);
+}
+function savePersona(){
+  var p=D.persona||{};
+  p.nombre=($('cfg-pnombre')&&$('cfg-pnombre').value||'').trim();
+  p.apellido=($('cfg-papellido')&&$('cfg-papellido').value||'').trim();
+  p.email=($('cfg-pemail')&&$('cfg-pemail').value||'').trim();
+  p.tel=($('cfg-ptel')&&$('cfg-ptel').value||'').trim();
+  p.dni=($('cfg-pdni')&&$('cfg-pdni').value||'').trim();
+  p.cargo=($('cfg-pcargo')&&$('cfg-pcargo').value||'').trim();
+  if(!p.nombre){showToast('❌ El nombre es obligatorio');return;}
+  D.persona=p;
+  saveD();
+  showToast('✅ Datos de contacto guardados');
+}
+function saveEmpresa(){
+  var e=D.empresa||{};
+  e.nombre=($('cfg-enombre')&&$('cfg-enombre').value||'').trim();
+  e.razon=($('cfg-erazon')&&$('cfg-erazon').value||'').trim();
+  e.cuit=($('cfg-ecuit')&&$('cfg-ecuit').value||'').trim();
+  e.iva=($('cfg-eiva')&&$('cfg-eiva').value||'').trim();
+  e.inicio=($('cfg-einicio')&&$('cfg-einicio').value||'').trim();
+  e.provincia=($('cfg-eprovincia')&&$('cfg-eprovincia').value||'').trim();
+  e.localidad=($('cfg-elocalidad')&&$('cfg-elocalidad').value||'').trim();
+  e.cp=($('cfg-ecp')&&$('cfg-ecp').value||'').trim();
+  e.dir=($('cfg-edir')&&$('cfg-edir').value||'').trim();
+  e.web=($('cfg-eweb')&&$('cfg-eweb').value||'').trim();
+  e.ig=($('cfg-eig')&&$('cfg-eig').value||'').trim();
+  e.fb=($('cfg-efb')&&$('cfg-efb').value||'').trim();
+  e.li=($('cfg-eli')&&$('cfg-eli').value||'').trim();
+  // Sincronizar nombre comercial con D.neg.nombre
+  if(e.nombre)D.neg.nombre=e.nombre;
+  D.empresa=e;
+  saveD();
+  showToast('✅ Datos de empresa guardados');
 }
 
 // ═════════════════════════════════════════════════════
@@ -3929,6 +4129,7 @@ function _bootApp(){
       _currentUserId = user.uid;
       loadD().then(function(){
         render();
+        checkOnboarding();
       });
     } else {
       _currentUserId = null;
@@ -3957,13 +4158,14 @@ function renderLogin(msg){
     '</div>'+
     '<div id="login-form-in">'+
     '<div class="fg"><label class="fl">Email</label><input class="fi" type="email" id="l-email" placeholder="tu@email.com" autocomplete="email"></div>'+
-    '<div class="fg"><label class="fl">Contraseña</label><input class="fi" type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"></div>'+
+    '<div class="fg"><label class="fl">Contraseña</label><div style="position:relative"><input class="fi" type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px"><button type="button" onclick="togglePwd(\'l-pass\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:17px;color:var(--t3)">👁</button></div></div>'+
     '<button class="btn bp" onclick="doLogin()" style="margin-top:8px">Entrar</button>'+
+    '<button type="button" onclick="showForgotPassword()" style="width:100%;margin-top:10px;border:none;background:none;color:var(--t2);font-size:13px;cursor:pointer;font-family:DM Sans,sans-serif;text-decoration:underline;padding:4px">¿Olvidaste tu contraseña?</button>'+
     '</div>'+
     '<div id="login-form-up" style="display:none">'+
     '<div class="fg"><label class="fl">Nombre del negocio</label><input class="fi" type="text" id="r-neg" placeholder="ej: Dulces de Lucía"></div>'+
     '<div class="fg"><label class="fl">Email</label><input class="fi" type="email" id="r-email" placeholder="tu@email.com" autocomplete="email"></div>'+
-    '<div class="fg"><label class="fl">Contraseña</label><input class="fi" type="password" id="r-pass" placeholder="mínimo 6 caracteres" autocomplete="new-password"></div>'+
+    '<div class="fg"><label class="fl">Contraseña</label><div style="position:relative"><input class="fi" type="password" id="r-pass" placeholder="mínimo 6 caracteres" autocomplete="new-password" style="padding-right:44px"><button type="button" onclick="togglePwd(\'r-pass\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:17px;color:var(--t3)">👁</button></div></div>'+
     '<button class="btn bp" onclick="doRegister()" style="margin-top:8px">Crear cuenta</button>'+
     '</div>'+
     '</div>';
@@ -3985,6 +4187,38 @@ function showLoginTab(tab){
   }
 }
 
+function showForgotPassword(){
+  // Reemplaza el form de login con el form de recuperación
+  var formIn=document.getElementById('login-form-in');
+  if(!formIn)return;
+  formIn.innerHTML=
+    '<div class="fg"><label class="fl">Tu email</label><input class="fi" type="email" id="fp-email" placeholder="tu@email.com" autocomplete="email"></div>'+
+    '<div id="fp-msg"></div>'+
+    '<button class="btn bp" onclick="doForgotPassword()" style="margin-top:8px">Enviar link de recuperación</button>'+
+    '<button type="button" onclick="renderLogin()" style="width:100%;margin-top:10px;border:none;background:none;color:var(--t2);font-size:13px;cursor:pointer;font-family:DM Sans,sans-serif;text-decoration:underline;padding:4px">Volver al inicio de sesión</button>';
+}
+function doForgotPassword(){
+  var email=(document.getElementById('fp-email')||{}).value||'';
+  var msg=document.getElementById('fp-msg');
+  if(!email){if(msg)msg.innerHTML='<div style="color:var(--rd);font-size:13px;margin-bottom:8px">Ingresá tu email</div>';return;}
+  window._fbResetPassword(window._auth,email)
+    .then(function(){
+      if(msg)msg.innerHTML='<div style="color:var(--gn);font-size:13px;background:var(--gnb);border:1px solid var(--gnr);border-radius:8px;padding:10px;margin-bottom:8px">✅ Te enviamos un email con el link para restablecer tu contraseña.</div>';
+    })
+    .catch(function(e){
+      var txt='Error al enviar el email';
+      if(e.code==='auth/user-not-found')txt='No existe una cuenta con ese email';
+      if(e.code==='auth/invalid-email')txt='El email no es válido';
+      if(msg)msg.innerHTML='<div style="color:var(--rd);font-size:13px;background:var(--rdb);border:1px solid var(--rdr);border-radius:8px;padding:10px;margin-bottom:8px">❌ '+txt+'</div>';
+    });
+}
+function togglePwd(fieldId,btn){
+  var inp=document.getElementById(fieldId);
+  if(!inp)return;
+  var show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.textContent=show?'🙈':'👁';
+}
 function doLogin(){
   var email=(document.getElementById('l-email')||{}).value||'';
   var pass=(document.getElementById('l-pass')||{}).value||'';
@@ -4008,7 +4242,7 @@ function doRegister(){
   if(pass.length<6){renderLogin('La contraseña debe tener al menos 6 caracteres');showLoginTab('up');return;}
   window._fbSignUp(window._auth,email,pass)
     .then(function(cred){
-      var seed=JSON.parse(JSON.stringify(SEED));
+      var seed=JSON.parse(JSON.stringify(SEED_EMPTY));
       seed.neg={nombre:neg};
       return window._fbSetDoc(window._fbDoc(window._db,'users',cred.user.uid),seed);
     })
@@ -4451,6 +4685,59 @@ function openNewMpModal(cb){
   document.getElementById('app').appendChild(overlay);
   setTimeout(function(){var n=document.getElementById('mp-modal-n');if(n)n.focus();},80);
 }
+
+function openNewCliModal(cb){
+  _cliModalCb=cb||function(newId){
+    // default: seleccionar el cliente recién creado en el pedido
+    var cl=D.cli.find(function(c){return c.id===newId;});
+    if(!cl)return;
+    NO.cliId=newId;NO._cliSr=cl.n;
+    closeCliModal();
+    renderNO();
+  };
+  var overlay=document.createElement('div');
+  overlay.id='cli-modal-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
+  overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:88vh;overflow-y:auto">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">'
+    +'<div style="font-size:17px;font-weight:700;color:var(--t1)">👤 Nuevo cliente</div>'
+    +'<button onclick="closeCliModal()" style="border:none;background:var(--bd);border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;color:var(--t2);display:flex;align-items:center;justify-content:center">×</button>'
+    +'</div>'
+    +'<div class="fg"><label class="fl">Nombre / Razón social *</label><input class="fi" id="cli-modal-n" placeholder="ej: Cafecito Quesada" autofocus></div>'
+    +'<div class="fg"><label class="fl">Tipo de cliente</label>'
+    +'<div class="rg">'
+    +'<div id="cli-modal-min" class="ro on" onclick="cliModalSetMay(false)">👤 Minorista</div>'
+    +'<div id="cli-modal-may" class="ro" onclick="cliModalSetMay(true)">🏪 Mayorista</div>'
+    +'</div></div>'
+    +'<div class="fg"><label class="fl">Teléfono</label><input class="fi" id="cli-modal-tel" type="tel" placeholder="ej: 11 1234-5678"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:6px">'
+    +'<button class="btn bs2" style="flex:1" onclick="closeCliModal()">Cancelar</button>'
+    +'<button class="btn bp" style="flex:2" onclick="saveCliFromModal()">✓ Crear y seleccionar</button>'
+    +'</div>'
+    +'</div>';
+  document.getElementById('app').appendChild(overlay);
+  setTimeout(function(){var n=document.getElementById('cli-modal-n');if(n)n.focus();},80);
+}
+var _cliModalMay=false;
+function cliModalSetMay(v){
+  _cliModalMay=v;
+  var min=document.getElementById('cli-modal-min');
+  var may=document.getElementById('cli-modal-may');
+  if(min){min.className='ro'+(v?'':' on');}
+  if(may){may.className='ro'+(v?' on':'');}
+}
+function closeCliModal(){var o=document.getElementById('cli-modal-overlay');if(o)o.remove();_cliModalMay=false;}
+function saveCliFromModal(){
+  var n=(document.getElementById('cli-modal-n')&&document.getElementById('cli-modal-n').value||'').trim();
+  if(!n){showToast('❌ El nombre es obligatorio');return;}
+  var tel=(document.getElementById('cli-modal-tel')&&document.getElementById('cli-modal-tel').value||'');
+  var id=uid();
+  D.cli.push({id:id,n:n,may:_cliModalMay,tel:tel});
+  saveD();
+  var fn=_cliModalCb;_cliModalCb=null;
+  if(fn)fn(id);
+}
+
 function closeMpModal(){var o=document.getElementById('mp-modal-overlay');if(o)o.remove();}
 function mpModalCatChg(val){
   var d=document.getElementById('mp-modal-cat-new');
