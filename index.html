@@ -1756,8 +1756,9 @@ function renderCatalogo(){
   // ── PRODUCTOS ───────────────────────────────────────
   if(SS.cTab==='productos'){
     h+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+'<div class="sb2" style="flex:1;margin-bottom:0">'+SVG_SRCH_CAT+'<input placeholder="Buscar producto..." value="'+esc(SS.cSr)+'" oninput="SS.cSr=this.value;updCatSr()"></div>'+'<div style="position:relative;flex-shrink:0">'+'<select onchange="SS.ptSort=this.value;renderCatalogo()" style="appearance:none;-webkit-appearance:none;padding:7px 24px 7px 10px;border:1px solid var(--bd);border-radius:20px;background:var(--cd);color:var(--t2);font-size:13px;font-weight:500;font-family:DM Sans,sans-serif;cursor:pointer">'+'<option value="az" '+(SS.ptSort===' az'||!SS.ptSort?'selected':'')+'>A–Z</option>'+'<option value="za" '+(SS.ptSort==='za'?'selected':'')+'>Z–A</option>'+'<option value="prc-hi" '+(SS.ptSort==='prc-hi'?'selected':'')+'>Precio ↑</option>'+'<option value="prc-lo" '+(SS.ptSort==='prc-lo'?'selected':'')+'>Precio ↓</option>'+'<option value="mg-hi" '+(SS.ptSort==='mg-hi'?'selected':'')+'>Mg% ↑</option>'+'<option value="mg-lo" '+(SS.ptSort==='mg-lo'?'selected':'')+'>Mg% ↓</option>'+'</select>'+'<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;pointer-events:none;color:var(--t3)">▾</span></div>'+'</div>';
-    h+='<div class="ch">'+'<button class="cp'+(SS.cFl===' todos'?' on':'')+' " onclick="SS.cFl=\'todos\';renderCatalogo()">Todos</button>';
-    for(var i=0;i<D.cpt.length;i++){var c=D.cpt[i];h+='<button class="cp'+(SS.cFl===c.id?' on':'')+' " onclick="SS.cFl=\''+c.id+'\';renderCatalogo()">'+esc(c.n)+'</button>';}
+    h+='<div class="ch">'+'<button class="cp'+(SS.cFl==='todos'?' on':'')+' " onclick="SS.cFl=\'todos\';renderCatalogo()">Todos</button>';
+    var cptSorted=D.cpt.slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');});
+    for(var i=0;i<cptSorted.length;i++){var c=cptSorted[i];h+='<button class="cp'+(SS.cFl===c.id?' on':'')+'" onclick="SS.cFl=\''+c.id+'\';renderCatalogo()">'+esc(c.n)+'</button>';}
     h+='</div>';
     var fps=D.pt.filter(function(p){return(!SS.cSr||p.n.toLowerCase().indexOf(SS.cSr.toLowerCase())>=0)&&(SS.cFl==='todos'||p.c===SS.cFl);});
     var sortBy=SS.ptSort||'az';
@@ -1783,8 +1784,9 @@ function renderCatalogo(){
   if(SS.cTab==='mp'){
     var sortMp=SS.mpSort||'az';
     h+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+'<div class="sb2" style="flex:1;margin-bottom:0">'+SVG_SRCH_CAT+'<input placeholder="Buscar ingrediente..." value="'+esc(SS.cSr)+'" oninput="SS.cSr=this.value;updCatSr()"></div>'+'<div style="position:relative;flex-shrink:0">'+'<select onchange="SS.mpSort=this.value;renderCatalogo()" style="appearance:none;-webkit-appearance:none;padding:7px 24px 7px 10px;border:1px solid var(--bd);border-radius:20px;background:var(--cd);color:var(--t2);font-size:13px;font-weight:500;font-family:DM Sans,sans-serif;cursor:pointer">'+'<option value="az"'+(sortMp==="az"?" selected":"")+'>A–Z</option>'+'<option value="za"'+(sortMp==="za"?" selected":"")+'>Z–A</option>'+'<option value="prc-hi"'+(sortMp==="prc-hi"?" selected":"")+'>Precio ↑</option>'+'<option value="prc-lo"'+(sortMp==="prc-lo"?" selected":"")+'>Precio ↓</option>'+'</select>'+'<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;pointer-events:none;color:var(--t3)">▾</span></div>'+'</div>';
-    h+='<div class="ch">'+'<button class="cp'+(SS.cFl===' todos'?' on':'')+' " onclick="SS.cFl=\'todos\';renderCatalogo()">Todos</button>';
-    for(var ci=0;ci<D.cmp.length;ci++){var cmi=D.cmp[ci];h+='<button class="cp'+(SS.cFl===cmi.id?' on':'')+' " onclick="SS.cFl=\''+cmi.id+'\';renderCatalogo()">'+esc(cmi.n)+'</button>';}
+    h+='<div class="ch">'+'<button class="cp'+(SS.cFl==='todos'?' on':'')+' " onclick="SS.cFl=\'todos\';renderCatalogo()">Todos</button>';
+    var cmpSorted=D.cmp.slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');});
+    for(var ci=0;ci<cmpSorted.length;ci++){var cmi=cmpSorted[ci];h+='<button class="cp'+(SS.cFl===cmi.id?' on':'')+'" onclick="SS.cFl=\''+cmi.id+'\';renderCatalogo()">'+esc(cmi.n)+'</button>';}
     h+='</div>';
     var fps=D.mp.filter(function(m){return(!SS.cSr||m.n.toLowerCase().indexOf(SS.cSr.toLowerCase())>=0)&&(SS.cFl==='todos'||m.c===SS.cFl);}).sort(function(a,b){return a.n.localeCompare(b.n);});
     if(sortMp==='az')fps.sort(function(a,b){return a.n.localeCompare(b.n,'es');});
@@ -2997,6 +2999,19 @@ function renderCliDet(){
   if(tl.length){h+='<div class="sc">Más comprados</div>';for(var i=0;i<tl.length;i++){var pt=D.pt.find(function(p){return p.id===tl[i][0];});h+=li2(ptEmoji(pt?pt.c:''),pt?pt.n:'?','',tl[i][1]+' uds','');}}
   h+='<div class="sc">Historial de pedidos</div>';
   for(var i=0;i<ps.length;i++){var p=ps[i],t=pedTot(p.id),e=pedEst(p.id),pid=p.id;h+=li2('📦',fmtD(p.f),estBdg(e),fmt(t),"go('pedDet',{id:'"+pid+"'})");}
+  var hasDatos=cl.n||cl.tel||cl.mail||cl.cuit||cl.dir||cl.loc||cl.cp;
+  if(hasDatos){
+    h+='<div class="sc">Datos de contacto</div>';
+    h+='<div class="bx" style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">';
+    if(cl.n) h+='<div style="display:flex;gap:10px"><span style="font-size:13px;color:var(--t3);min-width:80px">Nombre</span><span style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(cl.n)+'</span></div>';
+    if(cl.tel)h+='<div style="display:flex;gap:10px"><span style="font-size:13px;color:var(--t3);min-width:80px">Teléfono</span><span style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(cl.tel)+'</span></div>';
+    if(cl.mail)h+='<div style="display:flex;gap:10px"><span style="font-size:13px;color:var(--t3);min-width:80px">Email</span><span style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(cl.mail)+'</span></div>';
+    if(cl.cuit)h+='<div style="display:flex;gap:10px"><span style="font-size:13px;color:var(--t3);min-width:80px">CUIT</span><span style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(cl.cuit)+'</span></div>';
+    if(cl.dir) h+='<div style="display:flex;gap:10px"><span style="font-size:13px;color:var(--t3);min-width:80px">Dirección</span><span style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(cl.dir)+'</span></div>';
+    if(cl.loc) h+='<div style="display:flex;gap:10px"><span style="font-size:13px;color:var(--t3);min-width:80px">Localidad</span><span style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(cl.loc)+'</span></div>';
+    if(cl.cp)  h+='<div style="display:flex;gap:10px"><span style="font-size:13px;color:var(--t3);min-width:80px">Cod. Postal</span><span style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(cl.cp)+'</span></div>';
+    h+='</div>';
+  }
   h+='</div>';
   setC(h);
 }
@@ -4665,7 +4680,7 @@ function openNewMpModal(cb){
   var overlay=document.createElement('div');
   overlay.id='mp-modal-overlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
-  var catOpts=(D.cmp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var catOpts='<option value="">— Sin categoría —</option>'+(D.cmp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   catOpts+='<option value="__new__">+ Nueva categoría...</option>';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:92vh;overflow-y:auto">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">'
@@ -4845,7 +4860,7 @@ function openNewMeModal(cb){
   var overlay=document.createElement('div');
   overlay.id='me-modal-overlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
-  var catOpts=(D.cme||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var catOpts='<option value="">— Sin categoría —</option>'+(D.cme||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   catOpts+='<option value="__new__">+ Nueva categoría...</option>';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:92vh;overflow-y:auto">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">'
