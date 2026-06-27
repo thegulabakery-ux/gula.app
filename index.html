@@ -37,22 +37,7 @@ html,body{height:100%;background:#09090B;font-family:'DM Sans',system-ui,sans-se
 .fu{animation:fu .18s cubic-bezier(.25,.46,.45,.94) forwards}
 
 /* ─── STATUS BAR ─── */
-.sb{background:var(--cd);padding:max(12px,env(safe-area-inset-top,12px)) 22px 8px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--t1);font-weight:600}
-.sb-icons{display:flex;align-items:center;gap:5px}
-.sb-signal{display:flex;gap:1.5px;align-items:flex-end;height:11px}
-.sb-signal span{width:3px;background:var(--t1);border-radius:1px;display:block}
-.sb-signal span:nth-child(1){height:4px}
-.sb-signal span:nth-child(2){height:6px}
-.sb-signal span:nth-child(3){height:8px}
-.sb-signal span:nth-child(4){height:11px}
-.sb-wifi{width:14px;height:10px;position:relative;display:flex;justify-content:center;align-items:flex-end}
-.sb-wifi::before,.sb-wifi::after{content:'';position:absolute;border:2px solid var(--t1);border-radius:50%;border-bottom:none;border-left-color:transparent;border-right-color:transparent;transform:rotate(-45deg)}
-.sb-wifi::before{width:14px;height:8px;top:0}
-.sb-wifi::after{width:8px;height:5px;top:3px}
-.sb-dot{width:4px;height:4px;background:var(--t1);border-radius:50%}
-.sb-bat{width:22px;height:11px;border:1.5px solid var(--t1);border-radius:3px;position:relative;display:flex;align-items:center;padding:1.5px}
-.sb-bat::after{content:'';width:2px;height:5px;background:var(--t1);border-radius:0 1px 1px 0;position:absolute;right:-4px;top:50%;transform:translateY(-50%)}
-.sb-bat-fill{width:75%;height:100%;background:var(--t1);border-radius:1.5px}
+
 
 /* ─── HEADER ─── */
 .hd{padding:14px 20px 12px;background:var(--cd);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:50;backdrop-filter:blur(12px)}
@@ -344,14 +329,7 @@ if (window._fbReadyCb) window._fbReadyCb();
 </head>
 <body>
 <div id="app">
-  <div class="sb">
-    <span style="font-weight:700;font-size:15px">9:41</span>
-    <div class="sb-icons">
-      <div class="sb-signal"><span></span><span></span><span></span><span></span></div>
-      <div class="sb-wifi"></div>
-      <div class="sb-bat"><div class="sb-bat-fill"></div></div>
-    </div>
-  </div>
+
   <div id="H"></div>
   <div id="C" class="scr"></div>
   <nav id="N" class="nav"></nav>
@@ -896,7 +874,6 @@ function renderInicio(){
     +'<div><div class="hd-logo">G\u00fcla</div></div>'
     +'<div style="text-align:right;display:flex;align-items:center;gap:8px">'
     +'<button onclick="doLogout()" style="border:none;background:none;cursor:pointer;font-size:11px;font-weight:600;color:var(--t3);padding:4px 8px;border-radius:8px;font-family:DM Sans,sans-serif" title="Cerrar sesión">Salir</button>'
-    +(pend.length?'<span style="font-size:11px;font-weight:700;color:var(--br);background:var(--brl);padding:3px 9px;border-radius:20px;border:1px solid var(--brb)">'+pend.length+' sin cobrar</span>':'')
     +'<div style="font-size:12px;color:var(--t3);font-weight:500">'+esc(D.neg.nombre)+'</div>'
     +'</div>'
     +'</div></div>';
@@ -1946,7 +1923,7 @@ function renderMpDet(){
   var pr=ph[0]?ph[0].v:0;
   setH(mp.n,(cat?catEmojiMp(cat.id)+' ':'')+esc(cat?cat.n:'')+' · por '+mp.u,'catalogo','Catálogo','<div style="font-size:17px;font-weight:700;color:var(--br)">'+fmt(pr)+'/'+mp.u+'</div>');
   // Category edit
-  var catMpOpts=(D.cmp||[]).map(function(c){return '<option value="'+c.id+'"'+(c.id===mp.c?' selected':'')+'>'+esc(c.n)+'</option>';}).join('');
+  var catMpOpts=(D.cmp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'"'+(c.id===mp.c?' selected':'')+'>'+esc(c.n)+'</option>';}).join('');
   var mpUsedIn=D.rec.filter(function(r){return r.t==='MP'&&r.i===mp.id;}).map(function(r){return D.pt.find(function(p){return p.id===r.pt;});}).filter(Boolean);
   var h='<div class="p">';
   h+='<div class="bx" style="padding:12px 15px;margin-bottom:2px">';
@@ -2144,7 +2121,7 @@ function renderMeDet(){
   setH(me.n,(cat?catEmojiMe(cat.id)+' ':'')+esc(cat?cat.n:'')+' · por '+me.u,'catalogo','Catálogo','<div style="font-size:17px;font-weight:700;color:var(--br)">'+fmt(pr)+'/'+me.u+'</div>');
   var h='<div class="p">';
   // Category edit
-  var catMeOpts=(D.cme||[]).map(function(c){return '<option value="'+c.id+'"'+(c.id===me.c?' selected':'')+'>'+esc(c.n)+'</option>';}).join('');
+  var catMeOpts=(D.cme||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'"'+(c.id===me.c?' selected':'')+'>'+esc(c.n)+'</option>';}).join('');
   h+='<div class="bx" style="padding:12px 15px;margin-bottom:2px">';
   h+='<div style="font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Categoría</div>';
   h+='<select class="fs" id="me-cat-sel" onchange="updMeCat(this.value)">'+catMeOpts+'<option value="__new__">+ Nueva categoría...</option></select>';
@@ -2513,7 +2490,7 @@ var cpDirty={};  // ptId → new value (only modified)
 
 function cpBuildRows(){
   var h='';
-  (D.cpt||[]).forEach(function(cat){
+  (D.cpt||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).forEach(function(cat){
     if(window.cpFl&&window.cpFl!=='todos'&&cat.id!==window.cpFl)return;
     var fps=(D.pt||[]).filter(function(p){return p.c===cat.id&&(!window.cpSr||p.n.toLowerCase().indexOf((window.cpSr||'').toLowerCase())>=0);});
     if(!fps.length)return;
@@ -2548,7 +2525,7 @@ function renderEditCatPrices(){
   h+="<div class='sb2'><svg viewBox='0 0 24 24' style='width:16px;height:16px;stroke:var(--t3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg><input id='cp-search-inp' placeholder='Buscar producto...' value='"+esc(window.cpSr||'')+"' oninput='window.cpSr=this.value;updCpSr()'></div>";
   h+="<div class='ch'>";
   h+="<button class='cp"+(window.cpFl==='todos'?' on':'')+"' onclick='window.cpFl=\"todos\";updCpSr()'>Todos</button>";
-  (D.cpt||[]).forEach(function(c){
+  (D.cpt||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).forEach(function(c){
     h+="<button class='cp"+(window.cpFl===c.id?' on':'')+"' onclick='window.cpFl=\""+c.id+"\";updCpSr()'>"+esc(c.n)+"</button>";
   });
   h+="</div>";
@@ -2638,7 +2615,7 @@ function saveCatPrices(){
 // ═════════════════════════════════════════════════════
 function renderCreateMP(){
   setH('Nuevo ingrediente','','catalogo','Catálogo','');
-  var catOpts=(D.cmp||[]).map(function(c){return "<option value='"+c.id+"'>"+esc(c.n)+"</option>";}).join("");
+  var catOpts='<option value="">— Sin categoría —</option>'+(D.cmp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return "<option value='"+c.id+"'>"+esc(c.n)+"</option>";}).join("");
   catOpts += "<option value='__new__'>+ Crear nueva categoría...</option>";
   var pvOpts=(D.pvs||[]).map(function(v){return "<option value='"+v.id+"'>"+esc(v.n)+"</option>";}).join("");
   pvOpts += "<option value='__new__'>+ Agregar proveedor...</option>";
@@ -2796,7 +2773,7 @@ function saveMp(){
 // ═════════════════════════════════════════════════════
 function renderCreateME(){
   setH('Nuevo material de empaque','','catalogo','Catálogo','');
-  var catOpts=D.cme.map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var catOpts='<option value="">— Sin categoría —</option>'+(D.cme||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   var pvOpts=D.pvs.map(function(v){return '<option value="'+v.id+'">'+esc(v.n)+'</option>';}).join('');
   var h='<div class="p">';
   h+='<div class="fg"><label class="fl">Nombre *</label><input class="fi" id="men" placeholder="ej: Caja torta grande"></div>';
@@ -2891,6 +2868,9 @@ function renderMas(){
       +'</div>';
   }
   h+='</div>';
+  h+='<div class="bx" style="margin-top:8px;text-align:center">';
+  h+='<button onclick="doLogout()" style="border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:var(--t3);padding:10px 20px;font-family:DM Sans,sans-serif">Cerrar sesión</button>';
+  h+='</div>';
   h+='</div>';
   setC(h);
 }
@@ -2980,7 +2960,7 @@ function renderCliDet(){
   var v=ps.reduce(function(s,p){return s+pedTot(p.id);},0),g=ps.reduce(function(s,p){return s+pedGan(p.id);},0),mg=pct(g,v);
   var top={};D.pi.filter(function(i){return ps.some(function(p){return p.id===i.d;});}).forEach(function(i){top[i.pt]=(top[i.pt]||0)+i.q;});
   var tl=Object.keys(top).map(function(k){return[k,top[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,3);
-  setH(cl.n,'','clientes','Clientes',"<div style='display:flex;gap:8px;align-items:center'>"+bdg(cl.may?'Mayorista':'Minorista',cl.may?'bgb':'bgx')+"<button onclick=\"editCliId='"+SP.id+"';go('editCliente')\" style='padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:var(--bg);color:var(--t2);border:1px solid var(--bd);font-family:DM Sans,sans-serif'>Editar</button></div>");
+  setH(cl.n,'','clientes','Clientes',"<div style='display:flex;gap:8px;align-items:center'>"+bdg(cl.may?'Mayorista':'Minorista',cl.may?'bgb':'bgx')+"<button onclick=\"editCliMay=undefined;editCliId='"+SP.id+"';go('editCliente')\" style='padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:var(--bg);color:var(--t2);border:1px solid var(--bd);font-family:DM Sans,sans-serif'>Editar</button></div>");
   // Build monthly chart data (last 6 months)
   var months=[]; for(var mi=5;mi>=0;mi--){var md=new Date();md.setMonth(md.getMonth()-mi);months.push(md.toISOString().slice(0,7));}
   var mData=months.map(function(mon){var mps=ps.filter(function(p){return p.f.indexOf(mon)===0;});var mv=mps.reduce(function(s,p){return s+pedTot(p.id);},0);var mg2=pct(mps.reduce(function(s,p){return s+pedGan(p.id);},0),mv);return{mon:mon,v:mv,mg:mg2,n:mps.length};});
@@ -3024,7 +3004,9 @@ function renderCliDet(){
 function renderEditCliente(){
   var cl=D.cli.find(function(c){return c.id===editCliId;});
   if(!cl){go('clientes');return;}
-  var may=cl.may;
+  // Inicializar editCliMay siempre desde el cliente real al entrar por primera vez
+  if(editCliMay===undefined||editCliMay===null)editCliMay=!!cl.may;
+  var may=editCliMay;
   setH('Editar cliente','','cliDet','← Volver','');
   var h='<div class="p">';
   h+=fg('Nombre / Razón social *','<input class="fi" id="ecln" value="'+esc(cl.n)+'" placeholder="ej: Cafecito Quesada">');
@@ -3061,6 +3043,7 @@ function saveEditCli(){
     cl.cp=($('eclcp')&&$('eclcp').value||'');
   }
   saveD();
+  editCliMay=undefined; // reset para próxima edición
   go('clientes');
   setTimeout(function(){showToast('✅ Cliente guardado');},80);
 }
@@ -3336,8 +3319,8 @@ function clrPvDetAdd(){var fw=$('pvdet-add-fw');if(fw)fw.innerHTML='';}
 function showPvDetAdd(){
   var fw=$('pvdet-add-fw');
   if(!fw)return;
-  var catMpOpts=(D.cmp||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
-  var catMeOpts=(D.cme||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var catMpOpts=(D.cmp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var catMeOpts=(D.cme||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   fw.innerHTML='<div class="bx" style="margin-top:8px">'
     +'<div style="font-size:14px;font-weight:600;margin-bottom:12px">Agregar ítem a este proveedor</div>'
     +'<div style="display:flex;gap:0;margin-bottom:12px;border:1px solid var(--bd);border-radius:8px;overflow:hidden">'
@@ -3801,7 +3784,7 @@ function renderConfig(){
   h+=fg('Nombre *','<input class="fi" id="cfg-pnombre" value="'+esc(p.nombre||'')+'" placeholder="ej: Lucía">');
   h+=fg('Apellido *','<input class="fi" id="cfg-papellido" value="'+esc(p.apellido||'')+'" placeholder="ej: García">');
   h+='</div>';
-  h+=fg('Email *','<input class="fi" type="email" id="cfg-pemail" value="'+esc(p.email||'')+'" placeholder="tu@email.com">');
+  h+=fg('Email (solo lectura)','<div style="padding:12px 14px;background:var(--bd2);border-radius:var(--r1);font-size:14px;color:var(--t2);border:1px solid var(--bd)">'+esc((window._auth&&window._auth.currentUser&&window._auth.currentUser.email)||p.email||'—')+'</div><div style="font-size:11px;color:var(--t3);margin-top:4px">El email no puede modificarse</div>');
   h+=fg('Teléfono *','<input class="fi" type="tel" id="cfg-ptel" value="'+esc(p.tel||'')+'" placeholder="11 1234-5678">');
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
   h+=fg('DNI','<input class="fi" id="cfg-pdni" value="'+esc(p.dni||'')+'" placeholder="ej: 30.123.456">');
@@ -3854,7 +3837,7 @@ function savePersona(){
   var p=D.persona||{};
   p.nombre=($('cfg-pnombre')&&$('cfg-pnombre').value||'').trim();
   p.apellido=($('cfg-papellido')&&$('cfg-papellido').value||'').trim();
-  p.email=($('cfg-pemail')&&$('cfg-pemail').value||'').trim();
+  p.email=(window._auth&&window._auth.currentUser&&window._auth.currentUser.email)||(p.email||'');
   p.tel=($('cfg-ptel')&&$('cfg-ptel').value||'').trim();
   p.dni=($('cfg-pdni')&&$('cfg-pdni').value||'').trim();
   p.cargo=($('cfg-pcargo')&&$('cfg-pcargo').value||'').trim();
@@ -3922,7 +3905,7 @@ function renderCreatePT(){
   var h='<div class="p">'+dots(st,3);
 
   if(st===1){
-    var catOpts=(D.cpt||[]).map(function(c){return '<option value="'+c.id+'"'+(c.id===NPT.c?' selected':'')+'>'+ptEmoji(c.id)+' '+esc(c.n)+'</option>';}).join('');
+    var catOpts='<option value="">— Sin categoría —</option>'+(D.cpt||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'"'+(c.id===NPT.c?' selected':'')+'>'+ptEmoji(c.id)+' '+esc(c.n)+'</option>';}).join('');
     h+='<p style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">Datos del producto</p>';
     h+='<p style="font-size:13px;color:var(--t2);margin-bottom:18px">Nombre, categoría y precio de catálogo</p>';
     h+=fg('Nombre *','<input class="fi" id="pt-n" value="'+esc(NPT.n)+'" placeholder="ej: Budín de limón 1.2kg" oninput="NPT.n=this.value">');
@@ -4193,14 +4176,14 @@ function renderLogin(msg){
     '</div>'+
     '<div id="login-form-in">'+
     '<div class="fg"><label class="fl">Email</label><input class="fi" type="email" id="l-email" placeholder="tu@email.com" autocomplete="email"></div>'+
-    '<div class="fg"><label class="fl">Contraseña</label><div style="position:relative"><input class="fi" type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px"><button type="button" onclick="togglePwd(\'l-pass\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:17px;color:var(--t3)">👁</button></div></div>'+
+    '<div class="fg"><label class="fl">Contraseña</label><div style="position:relative"><input class="fi" type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px"><button type="button" onclick="togglePwd(\'l-pass\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;padding:4px;color:var(--t3)"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>'+
     '<button class="btn bp" onclick="doLogin()" style="margin-top:8px">Entrar</button>'+
     '<button type="button" onclick="showForgotPassword()" style="width:100%;margin-top:10px;border:none;background:none;color:var(--t2);font-size:13px;cursor:pointer;font-family:DM Sans,sans-serif;text-decoration:underline;padding:4px">¿Olvidaste tu contraseña?</button>'+
     '</div>'+
     '<div id="login-form-up" style="display:none">'+
     '<div class="fg"><label class="fl">Nombre del negocio</label><input class="fi" type="text" id="r-neg" placeholder="ej: Dulces de Lucía"></div>'+
     '<div class="fg"><label class="fl">Email</label><input class="fi" type="email" id="r-email" placeholder="tu@email.com" autocomplete="email"></div>'+
-    '<div class="fg"><label class="fl">Contraseña</label><div style="position:relative"><input class="fi" type="password" id="r-pass" placeholder="mínimo 6 caracteres" autocomplete="new-password" style="padding-right:44px"><button type="button" onclick="togglePwd(\'r-pass\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:17px;color:var(--t3)">👁</button></div></div>'+
+    '<div class="fg"><label class="fl">Contraseña</label><div style="position:relative"><input class="fi" type="password" id="r-pass" placeholder="mínimo 6 caracteres" autocomplete="new-password" style="padding-right:44px"><button type="button" onclick="togglePwd(\'r-pass\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;padding:4px;color:var(--t3)"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>'+
     '<button class="btn bp" onclick="doRegister()" style="margin-top:8px">Crear cuenta</button>'+
     '</div>'+
     '</div>';
@@ -4252,7 +4235,7 @@ function togglePwd(fieldId,btn){
   if(!inp)return;
   var show=inp.type==='password';
   inp.type=show?'text':'password';
-  btn.textContent=show?'🙈':'👁';
+  btn.innerHTML=show?'<svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>':'<svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 }
 function doLogin(){
   var email=(document.getElementById('l-email')||{}).value||'';
@@ -4682,7 +4665,7 @@ function openNewMpModal(cb){
   var overlay=document.createElement('div');
   overlay.id='mp-modal-overlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
-  var catOpts=(D.cmp||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var catOpts=(D.cmp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   catOpts+='<option value="__new__">+ Nueva categoría...</option>';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:92vh;overflow-y:auto">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">'
@@ -4862,7 +4845,7 @@ function openNewMeModal(cb){
   var overlay=document.createElement('div');
   overlay.id='me-modal-overlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
-  var catOpts=(D.cme||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var catOpts=(D.cme||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   catOpts+='<option value="__new__">+ Nueva categoría...</option>';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:92vh;overflow-y:auto">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">'
