@@ -933,7 +933,7 @@ function renderInicio(){
 
   // Acciones rapidas
   var SVG_ORD='<svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>';
-  var SVG_PSO='<svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/><line x1="8" y1="9" x2="16" y2="9"/></svg>';
+  var SVG_PSO='<svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
   var SVG_TAG='<svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
   h+='<div class="sc" style="margin-top:18px">Acciones r\u00e1pidas</div>';
   h+='<button onclick="NO=freshNO();go(\'newOrder\')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--br);color:#fff;border:none;border-radius:var(--r2);padding:16px;font-size:15px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer;margin-bottom:8px;box-shadow:0 4px 16px rgba(250,0,80,.28);transition:opacity .15s;" onmousedown="this.style.opacity=\'.85\'" onmouseup="this.style.opacity=\'1\'" ontouchstart="this.style.opacity=\'.85\'" ontouchend="this.style.opacity=\'1\'">'
@@ -1369,9 +1369,12 @@ function renderNO(){
     h+='<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">¿A quién le vendés?</div>';
     h+='<p style="font-size:13px;color:var(--t2);margin-bottom:18px">Buscá o seleccioná el cliente del pedido</p>';
     h+='<div class="fg"><label class="fl">Cliente *</label>';
-    h+='<div style="position:relative">';
-    h+='<input class="fi" id="no-cli-search" placeholder="Escribí el nombre para buscar..." value="'+esc(o._cliSr||'')+'" autocomplete="off" oninput="NO._cliSr=this.value;NO.cliId=\'\';updCliSearch()" style="padding-right:36px">';
+    h+='<div style="display:flex;gap:8px;align-items:center">';
+    h+='<div style="position:relative;flex:1">';
+    h+='<input class="fi" id="no-cli-search" placeholder="Escribí el nombre para buscar..." value="'+esc(o._cliSr||'')+'" autocomplete="off" oninput="NO._cliSr=this.value;NO.cliId=\'\';updCliSearch()" style="padding-right:36px;margin-bottom:0">';
     h+='<span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:14px">🔍</span>';
+    h+='</div>';
+    h+='<button onclick="openNewCliModal()" style="flex-shrink:0;padding:10px 14px;border-radius:var(--r1);border:1.5px dashed var(--br);background:var(--brl);color:var(--br);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:DM Sans,sans-serif">+ Nuevo</button>';
     h+='</div>';
     var srTerm=(o._cliSr||'').toLowerCase();
     h+='<div id="no-cli-results">';
@@ -1403,7 +1406,6 @@ function renderNO(){
     h+='</div>';
     h+='<div class="fg"><label class="fl">Fecha del pedido</label><input class="fi" type="date" value="'+o.fecha+'" onchange="NO.fecha=this.value"></div>';
     h+='<div style="display:flex;gap:8px">';
-    h+='<button class="btn bs2" onclick="openNewCliModal()" style="flex:1">+ Cliente nuevo</button>';
     h+='<button class="btn bp" id="no-next-btn" '+(o.cliId?'':'disabled')+' onclick="if(NO.cliId){NO.step=2;renderNO()}" style="flex:2">Siguiente →</button>';
     h+='</div>';
   }
@@ -1456,7 +1458,7 @@ function renderNO(){
       if(inC){
         right='<div style="display:flex;align-items:center;gap:6px">';
         right+='<button onclick="event.stopPropagation();chgNOQty(\''+ptid+'\',-1)" style="width:28px;height:28px;border:none;border-radius:50%;background:var(--bd);color:var(--t1);font-size:16px;cursor:pointer;flex-shrink:0">-</button>';
-        right+='<span style="width:22px;text-align:center;font-size:14px;font-weight:600;flex-shrink:0">'+inC.q+'</span>';
+        right+='<input type="number" onclick="event.stopPropagation()" onchange="event.stopPropagation();chgNOQtyDirect(\''+ptid+'\',this.value)" onblur="event.stopPropagation();chgNOQtyDirect(\''+ptid+'\',this.value)" value="'+inC.q+'" min="1" style="width:38px;text-align:center;font-size:14px;font-weight:700;flex-shrink:0;border:1.5px solid var(--br);border-radius:8px;padding:2px 3px;background:var(--cd);color:var(--t1);-webkit-appearance:none;appearance:none" inputmode="numeric">';
         right+='<button onclick="event.stopPropagation();chgNOQty(\''+ptid+'\',1)" style="width:28px;height:28px;border:none;border-radius:50%;background:var(--br);color:#fff;font-size:18px;cursor:pointer;flex-shrink:0">+</button>';
         right+='<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">';
         right+='<span style="font-size:9px;color:var(--t3);font-weight:500">$ por unidad</span>';
@@ -1470,14 +1472,30 @@ function renderNO(){
     }
     h+='</div>';
   }
-  // Cart summary bar (inside paso 2)
+  // Cart summary bar (inside paso 2) — sticky en la parte inferior
   if(st===2){
     var cartTotal2=NO.items.reduce(function(s,i){return s+i.v*i.q;},0);
     var cartCount2=NO.items.reduce(function(s,i){return s+i.q;},0);
-    h+='<div style="background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:13px 16px;margin-top:14px;display:flex;align-items:center;gap:10px">';
-    h+='<div style="flex:1"><div style="font-size:12px;color:var(--t3);margin-bottom:2px">'+cartCount2+' producto'+(cartCount2!==1?'s':'')+' · <b id=\'no-cart-bar-tot\'>'+fmt(cartTotal2)+'</b></div></div>';
+    // Items seleccionados como chips encima del botón
+    var selChips='';
+    if(NO.items.length){
+      selChips+='<div style="display:flex;gap:6px;overflow-x:auto;padding:0 0 8px;-webkit-overflow-scrolling:touch">';
+      for(var sc2=0;sc2<NO.items.length;sc2++){
+        var si=NO.items[sc2],spt=D.pt.find(function(p){return p.id===si.pt;});
+        selChips+='<div style="display:inline-flex;align-items:center;gap:6px;background:var(--brl);border:1px solid var(--brb);border-radius:20px;padding:4px 10px;white-space:nowrap;flex-shrink:0">';
+        selChips+='<span style="font-size:12px;font-weight:600;color:var(--br)">×'+si.q+'</span>';
+        selChips+='<span style="font-size:12px;color:var(--t1)">'+esc(spt?spt.n:'?')+'</span>';
+        selChips+='</div>';
+      }
+      selChips+='</div>';
+    }
+    h+='<div style="position:sticky;bottom:0;background:var(--bg);padding:10px 0 4px;margin-top:14px;border-top:1px solid var(--bd)">';
+    h+=selChips;
+    h+='<div style="display:flex;align-items:center;gap:10px">';
+    h+='<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)" id="no-cart-bar-tot">'+fmt(cartTotal2)+'</div>';
+    h+='<div style="font-size:11px;color:var(--t3)">'+cartCount2+' producto'+(cartCount2!==1?'s':'')+'</div></div>';
     h+='<button class="btn bp" style="min-width:130px" '+(NO.items.length?'':'disabled')+' onclick="if(NO.items.length){NO.step=3;renderNO()}">Siguiente →</button>';
-    h+='</div>';
+    h+='</div></div>';
   }
   // ── PASO 3 ──────────────────────────────────────────
   if(st===3){
@@ -2783,13 +2801,31 @@ function renderCreateME(){
   var h='<div class="p">';
   h+='<div class="fg"><label class="fl">Nombre *</label><input class="fi" id="men" placeholder="ej: Caja torta grande"></div>';
   h+='<div class="fg"><label class="fl">Detalle (dimensiones, etc)</label><input class="fi" id="med" placeholder="ej: 25×25×15"></div>';
-  h+='<div class="fg"><label class="fl">Categoría</label><select class="fs" id="mec">'+catOpts+'</select></div>';
+  h+='<div class="fg"><label class="fl">Categoría</label><select class="fs" id="mec" onchange="if(this.value===\'__new__\'){$(\'me-cat-new-inline\').style.display=\'block\';}else{$(\'me-cat-new-inline\').style.display=\'none\';}">'+catOpts+'<option value="__new__">+ Nueva categoría...</option></select></div>';
+  h+='<div id="me-cat-new-inline" style="display:none;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:-6px;margin-bottom:8px">';
+  h+='<div class="fg"><label class="fl">Nombre de la categoría *</label><input class="fi" id="me-cat-new-n3" placeholder="ej: Cajas, Bolsas..."></div>';
+  h+='<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1" onclick="$(\'me-cat-new-inline\').style.display=\'none\';$(\'mec\').value=\'\'">Cancelar</button><button class="btn bp" style="flex:2" onclick="saveNewMeCatInline()">✓ Crear categoría</button></div>';
+  h+='</div>';
   h+='<div class="fg"><label class="fl">Unidad</label><select class="fs" id="meu"><option value="u">u (unidad)</option><option value="hoja">hoja</option><option value="metro">metro</option><option value="rollo">rollo</option></select></div>';
   h+='<div class="fg"><label class="fl">Proveedor</label><select class="fs" id="mepv">'+pvOpts+'</select></div>';
   h+='<div class="dv"></div><div class="fg"><label class="fl">Precio inicial por unidad ($, opcional)</label><input class="fi" type="number" id="meprc" placeholder="0"></div>';
   h+='<button class="btn bp" onclick="saveME()">Crear material de empaque</button>';
   h+='</div>';
   setC(h);
+}
+function saveNewMeCatInline(){
+  var n=($('me-cat-new-n3')&&$('me-cat-new-n3').value||'').trim();
+  if(!n){showToast('❌ Ingresá un nombre para la categoría');return;}
+  var id=uid();
+  (D.cme=D.cme||[]).push({id:id,n:n,e:'📦'});
+  saveD();
+  var sel=$('mec');
+  if(sel){
+    var opt=document.createElement('option');
+    opt.value=id;opt.text=n;opt.selected=true;
+    sel.insertBefore(opt,sel.lastChild);
+  }
+  var d=$('me-cat-new-inline');if(d)d.style.display='none';
 }
 function saveME(){
   var n=($("men")&&$("men").value||"").trim();
@@ -3434,51 +3470,56 @@ function renderNotificaciones(){
     {id:'costo',label:'Costos'}
   ];
   var totalPending=activeNotifCount();
-  setH('Notificaciones',totalPending>0?totalPending+' pendientes':'Sin alertas','mas','Más','');
+  var hdrAction=totalPending>0
+    ?'<button onclick="dismissAllNotifs();renderNotificaciones()" style="border:none;background:none;color:var(--t2);cursor:pointer;font-size:13px;font-weight:600;padding:6px 10px;border-radius:8px;font-family:DM Sans,sans-serif">Marcar todas ✓</button>'
+    :'';
+  setH('Notificaciones',totalPending>0?totalPending+' pendientes':'Sin alertas','mas','Más',hdrAction);
   var h='<div class="p">';
-  // Chips + marcar todas
-  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-  h+='<div class="ch" style="flex:1;margin-bottom:0">';
+  h+='<div class="ch">';
   for(var i=0;i<types.length;i++){
     var t=types[i];
     var cnt=t.id==='all'?totalPending:notifs.filter(function(n){return n.type===t.id&&!n.dismissed;}).length;
     h+='<button class="cp'+(typeFilter===t.id?' on':'')+'" onclick="SS.notifFl=\''+t.id+'\';renderNotificaciones()" style="flex-shrink:0">'+t.label+(cnt?' ('+cnt+')':'')+'</button>';
   }
   h+='</div>';
-  if(totalPending>0)h+='<button onclick="dismissAllNotifs()" style="flex-shrink:0;border:none;background:none;color:var(--t3);cursor:pointer;font-size:12px;font-weight:600;padding:4px 0;white-space:nowrap">Marcar todas ✓</button>';
-  h+='</div>';
   var filtered=typeFilter==='all'?notifs:notifs.filter(function(n){return n.type===typeFilter;});
   var activeFiltered=filtered.filter(function(n){return !n.dismissed;});
   var dismissedFiltered=filtered.filter(function(n){return n.dismissed;});
   if(!activeFiltered.length&&!dismissedFiltered.length){h+=alrt('s','Sin alertas de este tipo. ¡Todo en orden!');h+='</div>';setC(h);return;}
-  // Pendientes — tap sobre la card para marcar como vista
   for(var i=0;i<activeFiltered.length;i++){
     var n=activeFiltered[i];
-    h+='<div onclick="dismissNotif(\''+n.id+'\')" class="bx" style="padding:14px;margin-bottom:8px;border-left:4px solid '+n.color+';cursor:pointer;position:relative" title="Tap para marcar como vista">';
-    h+='<div style="position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;background:'+n.color+'"></div>';
-    h+='<div style="display:flex;align-items:flex-start;gap:10px;padding-right:16px">';
+    h+='<div class="bx" style="padding:14px;margin-bottom:8px;border-left:4px solid '+n.color+';position:relative">';
+    h+='<div style="display:flex;align-items:flex-start;gap:10px">';
     h+='<span style="font-size:22px;flex-shrink:0">'+n.icon+'</span>';
-    h+='<div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:2px">'+esc(n.title)+'</div>';
-    h+='<div style="font-size:13px;color:var(--t2)">'+esc(n.body)+'</div></div>';
+    h+='<div style="flex:1">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">';
+    h+='<div style="font-size:14px;font-weight:600;color:var(--t1)">'+esc(n.title)+'</div>';
+    h+='<button onclick="dismissNotif(\''+n.id+'\');renderNotificaciones()" title="Marcar como vista" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--bd);background:var(--bg);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--t2)">✓</button>';
     h+='</div>';
-    h+='<button onclick="event.stopPropagation();'+n.action+'" class="btn bp" style="width:100%;margin-top:10px;padding:8px">'+esc(n.actionLabel)+' →</button>';
+    h+='<div style="font-size:13px;color:var(--t2)">'+esc(n.body)+'</div>';
+    h+='</div></div>';
+    h+='<button onclick="'+n.action+'" class="btn bp" style="width:100%;margin-top:10px;padding:8px">'+esc(n.actionLabel)+' →</button>';
     h+='</div>';
   }
-  // Vistas
   if(dismissedFiltered.length){
     h+='<div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:10px 0 6px">Vistas ('+dismissedFiltered.length+')</div>';
     for(var i=0;i<dismissedFiltered.length;i++){
       var nd=dismissedFiltered[i];
-      h+='<div class="bx" style="padding:12px 14px;margin-bottom:6px;opacity:.4;border-left:3px solid var(--bd)">';
+      h+='<div class="bx" style="padding:12px 14px;margin-bottom:6px;opacity:.5;border-left:3px solid var(--bd)">';
       h+='<div style="display:flex;align-items:center;gap:8px">';
       h+='<span style="font-size:16px;filter:grayscale(1)">'+nd.icon+'</span>';
       h+='<div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--t2);text-decoration:line-through">'+esc(nd.title)+'</div><div style="font-size:12px;color:var(--t3)">'+esc(nd.body)+'</div></div>';
-      h+='<span style="font-size:14px;color:var(--t3)">✓</span>';
+      h+='<button onclick="undismissNotif(\''+nd.id+'\');renderNotificaciones()" title="Desmarcar" style="border:none;background:none;color:var(--t3);cursor:pointer;font-size:16px;padding:4px">↩</button>';
       h+='</div></div>';
     }
   }
   h+='</div>';
   setC(h);
+}
+function undismissNotif(id){
+  if(!SS.dismissedNotifs)return;
+  SS.dismissedNotifs=SS.dismissedNotifs.filter(function(x){return x!==id;});
+  renderNotificaciones();
 }
 function renderReportes(){
   var per=curPer(),st=perSt(per),pp=perSt(prevPer());
@@ -3780,7 +3821,7 @@ function renderConfig(){
   h+='</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
   h+=fg('Inicio de actividades','<input class="fi" type="date" id="cfg-einicio" value="'+esc(e.inicio||'')+'">');
-  h+=fg('Provincia','<input class="fi" id="cfg-eprovincia" value="'+esc(e.provincia||'')+'" placeholder="ej: CABA">');
+  h+=fg('Provincia','<select class="fs" id="cfg-eprovincia"><option value="">— Seleccioná —</option>'+(function(){var ps=["Ciudad Autónoma de Buenos Aires (CABA)","Buenos Aires","Catamarca","Chaco","Chubut","Córdoba","Corrientes","Entre Ríos","Formosa","Jujuy","La Pampa","La Rioja","Mendoza","Misiones","Neuquén","Río Negro","Salta","San Juan","San Luis","Santa Cruz","Santa Fe","Santiago del Estero","Tierra del Fuego","Tucumán"];return ps.map(function(p){return '<option value="'+p+'"'+(e.provincia===p?' selected':'')+'>'+p+'</option>';}).join('');})()+'</select>');
   h+='</div>';
   h+='<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">';
   h+=fg('Localidad','<input class="fi" id="cfg-elocalidad" value="'+esc(e.localidad||'')+'" placeholder="ej: Palermo">');
@@ -4077,13 +4118,7 @@ function saveCompra(){
 //  EDITAR PRECIOS CATÁLOGO
 // ═══════════════════════════════════════════════════════
 
-function saveEditCli(){
-  var cl=(D.cli||[]).find(function(c){return c.id===editCliId;});if(!cl)return;
-  cl.n=($('ec-n').value||'').trim()||cl.n;cl.may=$('ec-may').classList.contains('on');
-  cl.tel=$('ec-tel').value||'';cl.email=$('ec-email').value||'';cl.rs=$('ec-rs').value||'';
-  cl.cuit=$('ec-cuit').value||'';cl.dir=$('ec-dir').value||'';cl.loc=$('ec-loc').value||'';cl.cp=$('ec-cp').value||'';
-  saveD();go('cliDet',{id:editCliId});
-}
+// saveEditCli — ver definición principal más arriba
 
 
 function render(){
