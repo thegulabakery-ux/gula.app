@@ -288,6 +288,24 @@ html,body{height:100%;background:#09090B;font-family:'DM Sans',system-ui,sans-se
 .icon-btn.on svg,.icon-btn:active svg{stroke:#fff}
 .filter-row{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin-bottom:8px}
 .filter-row::-webkit-scrollbar{display:none}
+
+/* ─── RESPONSIVE — Tablet & Desktop ─── */
+@media (min-width:768px){
+  #app{max-width:680px;border-radius:16px;margin:20px auto;height:calc(100vh - 40px);box-shadow:0 8px 40px rgba(0,0,0,.18);}
+  body{align-items:flex-start;padding:0;}
+  .p{padding:20px 28px;}
+  .hd{padding:16px 28px;}
+  .hero-card{padding:24px 28px;}
+  .hero-value{font-size:52px;}
+  .kg{grid-template-columns:repeat(4,1fr);}
+  .bx{padding:18px 20px;}
+}
+@media (min-width:1100px){
+  #app{max-width:900px;}
+  .p{padding:24px 32px;}
+  .hd{padding:18px 32px;}
+  .kg{grid-template-columns:repeat(4,1fr);}
+}
 </style>
 <script type="module">
 // ═══════════════════════════════════════════════════
@@ -815,6 +833,10 @@ function openQASheet(){
         '<div class="qa-sheet-icon" style="background:var(--rdb);color:var(--rd);">'+SVG_PKG+'</div>'+
         '<div><div class="qa-sheet-label">Material de empaque</div><div class="qa-sheet-sub">Caja, bolsa, sticker, etc.</div></div>'+
       '</button>'+
+      '<button class="qa-sheet-btn" onclick="closeQASheet();openQAGastoSheet()">'+
+        '<div class="qa-sheet-icon" style="background:#F0FDF4;color:#16A34A;"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>'+
+        '<div><div class="qa-sheet-label">Gasto fijo</div><div class="qa-sheet-sub">Registrar un gasto del período</div></div>'+
+      '</button>'+
     '</div>';
   $('app').appendChild(wrap);
   requestAnimationFrame(function(){
@@ -824,6 +846,48 @@ function openQASheet(){
       if(sh)sh.classList.add('vis');
     });
   });
+}
+function openQAGastoSheet(){
+  // Abrir selector de categoría de gasto y período
+  if(!(D.cgi&&D.cgi.length)){showToast('❌ Primero creá categorías de gasto en Más → Gastos fijos');return;}
+  var per2=SS.gasPer||curPer();
+  var catOpts=(D.cgi||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var wrap=document.createElement('div');
+  wrap.id='gasto-qa-wrap';
+  wrap.style.cssText='position:absolute;inset:0;z-index:210;pointer-events:none;';
+  wrap.innerHTML=
+    '<div class="qa-sheet-overlay" id="gqa-overlay" onclick="closeGastoQA()" style="pointer-events:auto;"></div>'+
+    '<div class="qa-sheet" id="gqa-sheet" style="pointer-events:auto;">'+
+      '<div class="qa-sheet-handle"></div>'+
+      '<div class="qa-sheet-title">Cargar gasto fijo</div>'+
+      '<div class="fg"><label class="fl">Categoría *</label><select class="fs" id="gqa-cat">'+catOpts+'</select></div>'+
+      '<div class="fg"><label class="fl">Monto ($) *</label><input class="fi" type="number" id="gqa-v" placeholder="ej: 15000" inputmode="decimal"></div>'+
+      '<div class="fg"><label class="fl">Período</label><input class="fi" type="month" id="gqa-p" value="'+per2+'"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:4px"><button class="btn bs2" style="flex:1" onclick="closeGastoQA()">Cancelar</button><button class="btn bp" style="flex:2" onclick="saveGastoQA()">✓ Guardar gasto</button></div>'+
+    '</div>';
+  $('app').appendChild(wrap);
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    var ov=$('gqa-overlay');var sh=$('gqa-sheet');
+    if(ov)ov.classList.add('vis');if(sh)sh.classList.add('vis');
+  });});
+}
+function closeGastoQA(){
+  var ov=$('gqa-overlay');var sh=$('gqa-sheet');
+  if(ov)ov.classList.remove('vis');if(sh)sh.classList.remove('vis');
+  setTimeout(function(){var w=$('gasto-qa-wrap');if(w)w.remove();},260);
+}
+function saveGastoQA(){
+  var catId=$('gqa-cat')&&$('gqa-cat').value;
+  var v=parseFloat($('gqa-v')&&$('gqa-v').value)||0;
+  var p=($('gqa-p')&&$('gqa-p').value)||curPer();
+  if(!catId){showToast('❌ Seleccioná una categoría');return;}
+  if(!v||v<=0){showToast('❌ Ingresá un monto válido');return;}
+  var existing=D.gi.find(function(x){return x.c===catId&&x.p===p;});
+  if(existing){existing.v=v;}
+  else{(D.gi=D.gi||[]).push({id:uid(),c:catId,v:v,p:p});}
+  saveD();
+  closeGastoQA();
+  showToast('✅ Gasto guardado');
 }
 function closeQASheet(){
   var ov=$('qa-overlay');var sh=$('qa-sheet');
@@ -1538,6 +1602,7 @@ function renderNO(){
       h+=li2(initAv(pt.n),pt.n,'<span style="font-size:12px;color:var(--br);font-weight:600">'+fmt(ptv)+'</span>',right,'');
     }
     h+='</div>';
+    h+='<button onclick="openNewPtModal()" style="width:100%;margin-top:8px;padding:10px;border-radius:var(--r1);border:1.5px dashed var(--br);background:var(--brl);color:var(--br);font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">+ Nuevo producto</button>';
   }
   // Cart summary bar (inside paso 2) — sticky en la parte inferior
   if(st===2){
@@ -2210,8 +2275,8 @@ function saveMpPrice(){
       }
     }
   }
-  renderMpDet();
   showToast('✅ Precio guardado');
+  setTimeout(function(){go('catalogo');},400);
 }
 // ═════════════════════════════════════════════════════
 //  ME DETALLE
@@ -2358,8 +2423,8 @@ function saveMePrice(){
       }
     }
   }
-  renderMeDet();
   showToast('✅ Precio guardado');
+  setTimeout(function(){go('catalogo');},400);
 }
 
 
@@ -2414,6 +2479,62 @@ function showToast(msg){
   $('app').appendChild(t);
   setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},2500);
 }
+
+// ─── Editar ingrediente/empaque desde receta ────────
+function openEditItemModal(t,id){
+  var obj=t==='MP'?(D.mp||[]).find(function(m){return m.id===id;}):(D.me||[]).find(function(m){return m.id===id;});
+  if(!obj){showToast('❌ Ítem no encontrado');return;}
+  var latPr=t==='MP'?latMp(id):latMe(id);
+  var pvOpts='<option value="">— Sin proveedor —</option>'+(D.pvs||[]).map(function(v){return '<option value="'+v.id+'"'+(obj.pv===v.id?' selected':'')+'>'+esc(v.n)+'</option>';}).join('');
+  var catArr=t==='MP'?(D.cmp||[]):(D.cme||[]);
+  var catOpts='<option value="">— Sin categoría —</option>'+catArr.map(function(c){return '<option value="'+c.id+'"'+(obj.c===c.id?' selected':'')+'>'+esc(c.n)+'</option>';}).join('');
+  var uOpts=t==='MP'
+    ?['kg','g','lt','ml','u'].map(function(u){return '<option'+(obj.u===u?' selected':'')+' value="'+u+'">'+u+'</option>';}).join('')
+    :['u','cm','m','kg','g'].map(function(u){return '<option'+(obj.u===u?' selected':'')+' value="'+u+'">'+u+'</option>';}).join('');
+  var overlay=document.createElement('div');
+  overlay.id='edit-item-modal';
+  overlay.setAttribute('data-t',t);overlay.setAttribute('data-id',id);
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:910;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
+  overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;max-height:85vh;overflow-y:auto">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +'<div style="font-size:16px;font-weight:700;color:var(--t1)">Editar '+esc(obj.n)+'</div>'
+    +'<button onclick="closeEditItemModal()" style="border:none;background:var(--bd);border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;color:var(--t2)">×</button>'
+    +'</div>'
+    +'<div class="fg"><label class="fl">Precio actual: '+fmt(latPr)+' por '+obj.u+'</label><input class="fi" type="number" id="eim-precio" placeholder="Nuevo precio (dejar vacío para no cambiar)" inputmode="decimal"></div>'
+    +'<div class="fg"><label class="fl">Proveedor</label><select class="fs" id="eim-pv">'+pvOpts+'</select></div>'
+    +'<div class="fg"><label class="fl">Categoría</label><select class="fs" id="eim-cat">'+catOpts+'</select></div>'
+    +'<div class="fg"><label class="fl">Unidad de medida</label><select class="fs" id="eim-u">'+uOpts+'</select></div>'
+    +'<div style="display:flex;gap:8px;margin-top:8px">'
+    +'<button class="btn bs2" style="flex:1" onclick="closeEditItemModal()">Cancelar</button>'
+    +'<button class="btn bp" style="flex:2" onclick="saveEditItemModal()">✓ Guardar cambios</button>'
+    +'</div>'
+    +'</div>';
+  document.getElementById('app').appendChild(overlay);
+}
+function closeEditItemModal(){var o=document.getElementById('edit-item-modal');if(o)o.remove();}
+function saveEditItemModal(){
+  var overlay=document.getElementById('edit-item-modal');
+  if(!overlay)return;
+  var t=overlay.getAttribute('data-t');
+  var id=overlay.getAttribute('data-id');
+  var obj=t==='MP'?(D.mp||[]).find(function(m){return m.id===id;}):(D.me||[]).find(function(m){return m.id===id;});
+  if(!obj){showToast('❌ Ítem no encontrado');return;}
+  // Actualizar campos
+  obj.pv=$('eim-pv')&&$('eim-pv').value||obj.pv;
+  obj.c=$('eim-cat')&&$('eim-cat').value||obj.c;
+  obj.u=$('eim-u')&&$('eim-u').value||obj.u;
+  // Nuevo precio (si ingresó)
+  var nuevoPrecio=parseFloat($('eim-precio')&&$('eim-precio').value)||0;
+  if(nuevoPrecio>0){
+    var tabla=t==='MP'?'mpp':'mep';
+    (D[tabla]=D[tabla]||[]).push({id:uid(),m:id,v:nuevoPrecio,f:toStr(),pv:obj.pv||''});
+  }
+  saveD();
+  closeEditItemModal();
+  renderCreateReceta();
+  showToast('✅ '+esc(obj.n)+' actualizado');
+}
+
 function rcSave(){
   if(!NRC.items.length){alert('Agregá al menos un ingrediente a la receta.');return;}
   D.rec=D.rec.filter(function(r){return r.pt!==NRC.ptId;});
@@ -2565,7 +2686,7 @@ function renderCreateReceta(){
     if(it.t==='MP'){var obj=D.mp.find(function(m){return m.id===it.i;})||{n:'?',u:''};nm=obj.n;un=obj.u;pr2=latMp(it.i);}
     else{var obj=D.me.find(function(m){return m.id===it.i;})||{n:'?',u:''};nm=obj.n;un=obj.u;pr2=latMe(it.i);}
     var idx=i;
-    h+='<div class="rr"><div class="rr-n"><div class="rr-nm">'+esc(nm)+'</div><div class="rr-s">'+it.q+' '+esc(un)+' · '+fmt(pr2*it.q)+'</div></div><input class="rr-qi" type="number" value="'+it.q+'" onchange="NRC.items['+idx+'].q=parseFloat(this.value)||0;renderCreateReceta()"><span class="rr-d" onclick="rcDelItem('+idx+')">×</span></div>';
+    h+='<div class="rr"><div class="rr-n"><div class="rr-nm">'+esc(nm)+'</div><div class="rr-s">'+it.q+' '+esc(un)+' · '+fmt(pr2*it.q)+'</div></div><input class="rr-qi" type="number" value="'+it.q+'" onchange="NRC.items['+idx+'].q=parseFloat(this.value)||0;renderCreateReceta()"><button onclick="openEditItemModal(\''+it.t+'\',\''+it.i+'\')" style="border:none;background:none;cursor:pointer;font-size:15px;padding:2px 4px;color:var(--t2)">✏️</button><span class="rr-d" onclick="rcDelItem('+idx+')">×</span></div>';
   }
   // Add form
   if(NRC.showAdd){
@@ -2577,7 +2698,15 @@ function renderCreateReceta(){
   } else {
     h+='<button class="btn bs2" style="margin-top:8px" onclick="rcToggleAdd()">+ Agregar '+(NRC.tab==='MP'?'ingrediente':'material de empaque')+'</button>';
   }
-  h+='<div class="dv"></div><button class="btn bp" onclick="rcSave()">💾 Guardar receta</button>';
+  // Sticky bottom bar — siempre visible
+  h+='<div style="position:sticky;bottom:0;background:var(--bg);padding:10px 0 4px;margin-top:14px;border-top:1px solid var(--bd)">';
+  h+='<div style="display:flex;align-items:center;gap:10px">';
+  h+='<div style="flex:1">';
+  h+='<div style="font-size:11px;color:var(--t3)">Costo total receta</div>';
+  h+='<div style="font-size:16px;font-weight:700;color:var(--t1)">'+fmt(co)+'</div>';
+  h+='</div>';
+  h+='<button class="btn bp" style="min-width:140px" onclick="rcSave()">💾 Guardar receta</button>';
+  h+='</div></div>';
   // ─── Evolución de Rentabilidad ───
   h+='<div class="dv"></div>';
   h+='<div style="margin-bottom:6px"><div style="font-size:13px;font-weight:700;color:var(--t1);letter-spacing:-.2px">Evolución de Rentabilidad</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Últimos 6 meses · costo vs precio vs margen</div></div>';
@@ -5062,6 +5191,67 @@ function meModalPvSave(){
     sel.insertBefore(opt,sel.lastChild);sel.value=id;
   }
   var d=document.getElementById('me-modal-pv-new');if(d)d.style.display='none';
+}
+
+
+// ─── Crear producto desde pedido ────────────────────
+function openNewPtModal(){
+  var cptOpts='<option value="">— Sin categoría —</option>'+(D.cpt||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('')+'<option value="__new__">+ Nueva categoría...</option>';
+  var overlay=document.createElement('div');
+  overlay.id='new-pt-modal-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
+  overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:85vh;overflow-y:auto">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">'
+    +'<div style="font-size:17px;font-weight:700;color:var(--t1)">🍰 Nuevo producto</div>'
+    +'<button onclick="closeNewPtModal()" style="border:none;background:var(--bd);border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;color:var(--t2);display:flex;align-items:center;justify-content:center">×</button>'
+    +'</div>'
+    +'<div class="fg"><label class="fl">Nombre *</label><input class="fi" id="npt-modal-n" placeholder="ej: Torta de chocolate" autofocus></div>'
+    +'<div class="fg"><label class="fl">Precio de venta ($) *</label><input class="fi" type="number" id="npt-modal-v" placeholder="ej: 2500" inputmode="decimal"></div>'
+    +'<div class="fg"><label class="fl">Categoría</label><select class="fs" id="npt-modal-c" onchange="nptModalCatChg(this.value)">'+cptOpts+'</select></div>'
+    +'<div id="npt-modal-cat-new" style="display:none;background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:-6px;margin-bottom:8px">'
+    +'<div class="fg"><label class="fl">Nombre de la categoría *</label><input class="fi" id="npt-modal-cat-n" placeholder="ej: Tortas"></div>'
+    +'<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1" onclick="nptModalCatCancel()">Cancelar</button><button class="btn bp" style="flex:2" onclick="saveNptModalCat()">✓ Crear</button></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:8px">'
+    +'<button class="btn bs2" style="flex:1" onclick="closeNewPtModal()">Cancelar</button>'
+    +'<button class="btn bp" style="flex:2" onclick="saveNewPtFromModal()">✓ Crear y agregar al pedido</button>'
+    +'</div>'
+    +'</div>';
+  document.getElementById('app').appendChild(overlay);
+  setTimeout(function(){var n=document.getElementById('npt-modal-n');if(n)n.focus();},80);
+}
+function closeNewPtModal(){var o=document.getElementById('new-pt-modal-overlay');if(o)o.remove();}
+function nptModalCatChg(val){
+  var d=document.getElementById('npt-modal-cat-new');
+  if(d)d.style.display=val==='__new__'?'block':'none';
+}
+function nptModalCatCancel(){
+  var d=document.getElementById('npt-modal-cat-new');if(d)d.style.display='none';
+  var sel=document.getElementById('npt-modal-c');if(sel)sel.value='';
+}
+function saveNptModalCat(){
+  var n=($('npt-modal-cat-n')&&$('npt-modal-cat-n').value||'').trim();
+  if(!n){showToast('❌ Ingresá el nombre de la categoría');return;}
+  var id=uid();(D.cpt=D.cpt||[]).push({id:id,n:n});
+  saveD();
+  var sel=$('npt-modal-c');
+  if(sel){var opt=document.createElement('option');opt.value=id;opt.text=n;opt.selected=true;sel.insertBefore(opt,sel.lastChild);sel.value=id;}
+  var d=$('npt-modal-cat-new');if(d)d.style.display='none';
+}
+function saveNewPtFromModal(){
+  var n=($('npt-modal-n')&&$('npt-modal-n').value||'').trim();
+  var v=parseFloat($('npt-modal-v')&&$('npt-modal-v').value)||0;
+  var c=($('npt-modal-c')&&$('npt-modal-c').value||'');
+  if(!n){showToast('❌ El nombre es obligatorio');return;}
+  if(!v||v<=0){showToast('❌ Ingresá un precio de venta');return;}
+  if(c==='__new__'){showToast('❌ Confirmá la nueva categoría primero');return;}
+  var id=uid();
+  (D.pt=D.pt||[]).push({id:id,n:n,c:c,v:v,yields:1});
+  saveD();
+  // Auto-agregar al pedido
+  addNOItem(id,v);
+  closeNewPtModal();
+  renderNO();
 }
 
 function saveMpFromModal(){
