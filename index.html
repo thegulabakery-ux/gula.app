@@ -350,6 +350,7 @@ function fmt(n){
   return'$'+r.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function fmtK(n){return fmt(n);} // alias — siempre formato completo
+function fmtH(n){if(n==null)return'—';return'$'+Math.round(n).toLocaleString('es-AR');} // Home: sin decimales
 function pct(a,b){return b?Math.round(a/b*100):0;}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
 function toStr(){return new Date().toISOString().split('T')[0];}
@@ -871,7 +872,12 @@ function renderFAB(){
 //  INICIO
 // ═════════════════════════════════════════════════════
 function renderInicio(){
-  var per=curPer(),st=perSt(per),pv=perSt(prevPer());
+  var per=SS.homePer||curPer();
+  var st=perSt(per);
+  // Período anterior: mes antes del seleccionado (no el mes anterior al actual)
+  var perDate=new Date(per+'-02');perDate.setMonth(perDate.getMonth()-1);
+  var prevP=perDate.toISOString().slice(0,7);
+  var pv=perSt(prevP);
   var net=st.g-st.gi;
   var netPos=net>=0;
   var vg=pv.v?Math.round((st.v-pv.v)/pv.v*100):null;
@@ -903,16 +909,44 @@ function renderInicio(){
   h+='<div class="hero-card">';
   h+='<div class="hero-period" onclick="openPeriodPicker()">'+perLbl(per)+SVG_CHEVRON+'</div>';
   h+='<div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px">Resultado del período</div>';
-  h+='<div class="hero-value" style="color:'+(netPos?'var(--gn)':'var(--rd)')+'">'+(net<0?'\u2212':'')+fmt(Math.abs(net))+'</div>';
-  h+='<div class="hero-sub"><span>Ventas <b style="color:var(--t1)">'+fmtK(st.v)+'</b></span><span style="color:var(--bd)">·</span><span>Margen <b style="color:var(--t1)">'+st.mg+'%</b></span></div>';
+  h+='<div class="hero-value" style="color:'+(netPos?'var(--gn)':'var(--rd)')+'">'+(net<0?'\u2212':'')+fmtH(Math.abs(net))+'</div>';
+  h+='<div class="hero-sub"><span>Ventas <b style="color:var(--t1)">'+fmtH(st.v)+'</b></span><span style="color:var(--bd)">·</span><span>Margen <b style="color:var(--t1)">'+st.mg+'%</b></span></div>';
   h+=deltaHtml;
+
+  // ── Desglose del resultado ──
+  var perPeds=D.ped.filter(function(p){return p.f.indexOf(per)===0;});
+  var dsgMP=perPeds.reduce(function(s,p){
+    return s+D.pi.filter(function(i){return i.d===p.id;}).reduce(function(s2,i){
+      return s2+D.rec.filter(function(r){return r.pt===i.pt&&r.t==='MP';}).reduce(function(s3,r){return s3+latMp(r.i)*r.q;},0)*i.q;
+    },0);
+  },0);
+  var dsgME=perPeds.reduce(function(s,p){
+    return s+D.pi.filter(function(i){return i.d===p.id;}).reduce(function(s2,i){
+      return s2+D.rec.filter(function(r){return r.pt===i.pt&&r.t==='ME';}).reduce(function(s3,r){return s3+latMe(r.i)*r.q;},0)*i.q;
+    },0);
+  },0);
+  var dsgEnvio=perPeds.reduce(function(s,p){return s+(p.ce||0);},0);
+  var dsgFijos=st.gi;
+
+  if(dsgMP||dsgME||dsgEnvio||dsgFijos){
+    h+='<div style="display:grid;grid-template-columns:1fr auto;row-gap:5px;margin:8px 0 4px;padding:10px 14px;background:var(--bd2);border-radius:10px">';
+    function dsgRow(lbl,val){
+      return '<div style="font-size:12px;color:var(--t3)">'+lbl+'</div><div style="font-size:12px;font-weight:600;color:var(--t2);text-align:right">'+fmtH(val)+'</div>';
+    }
+    if(dsgMP)  h+=dsgRow('Ingredientes',dsgMP);
+    if(dsgME)  h+=dsgRow('Empaques',dsgME);
+    if(dsgEnvio)h+=dsgRow('Envíos',dsgEnvio);
+    if(dsgFijos)h+=dsgRow('Gastos fijos',dsgFijos);
+    h+='</div>';
+  }
+
   h+='</div>';
 
   // Cobros pendientes
   if(tpend>0){
     h+='<div class="cobros-card" onclick="goPending()">';
     h+='<div class="cobros-dot" style="background:var(--amb);color:var(--am)"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>';
-    h+='<div class="cobros-body"><div class="cobros-val" style="color:var(--am)">'+fmt(tpend)+'</div><div class="cobros-lbl">'+pend.length+' pedido'+(pend.length>1?'s':'')+' sin cobrar \u2014 toc\u00e1 para cobrar</div></div>';
+    h+='<div class="cobros-body"><div class="cobros-val" style="color:var(--am)">'+fmtH(tpend)+'</div><div class="cobros-lbl">'+pend.length+' pedido'+(pend.length>1?'s':'')+' sin cobrar \u2014 toc\u00e1 para cobrar</div></div>';
     h+='<svg class="cobros-arr" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>';
     h+='</div>';
   } else {
@@ -976,7 +1010,7 @@ function openPeriodPicker(){
   for(var i=0;i<12;i++){
     var d=new Date();d.setMonth(d.getMonth()-i);
     var p=d.toISOString().slice(0,7);
-    opts+='<div onclick="closePeriodPicker()" style="padding:13px 20px;border-bottom:1px solid var(--bd2);font-size:14px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'var(--br)':'var(--t1)')+';cursor:pointer;">'+perLbl(p)+'</div>';
+    opts+='<div onclick="selectPer(\''+p+'\')" style="padding:13px 20px;border-bottom:1px solid var(--bd2);font-size:14px;font-weight:'+(SS.homePer===p||(i===0&&!SS.homePer)?'700':'400')+';color:'+(SS.homePer===p||(i===0&&!SS.homePer)?'var(--br)':'var(--t1)')+';cursor:pointer;">'+perLbl(p)+'</div>';
   }
   wrap.innerHTML='<div class="qa-sheet-overlay" id="pp-overlay" onclick="closePeriodPicker()" style="pointer-events:auto;"></div>'
     +'<div class="qa-sheet" id="pp-sheet" style="pointer-events:auto;">'
@@ -989,6 +1023,11 @@ function openPeriodPicker(){
     var ov=$('pp-overlay');var sh=$('pp-sheet');
     if(ov)ov.classList.add('vis');if(sh)sh.classList.add('vis');
   });});
+}
+function selectPer(p){
+  SS.homePer=p;
+  closePeriodPicker();
+  setTimeout(function(){renderInicio();},80);
 }
 function closePeriodPicker(){
   var ov=$('pp-overlay');var sh=$('pp-sheet');
