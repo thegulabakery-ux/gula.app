@@ -294,7 +294,7 @@ html,body{height:100%;background:#09090B;font-family:'DM Sans',system-ui,sans-se
 //  FIREBASE INIT
 // ═══════════════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -321,6 +321,9 @@ window._fbSignUp = createUserWithEmailAndPassword;
 window._fbSignOut = signOut;
 window._fbOnAuth = onAuthStateChanged;
 window._fbResetPassword = sendPasswordResetEmail;
+window._fbUpdatePassword = updatePassword;
+window._fbEmailAuthProvider = EmailAuthProvider;
+window._fbReauth = reauthenticateWithCredential;
 
 // Cuando Firebase esté listo, arrancar la app
 window._fbReady = true;
@@ -352,9 +355,28 @@ function inits(s){return(s||'?').split(' ').slice(0,2).map(function(w){return w[
 var MOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 function perLbl(p){if(!p)return'';var a=p.split('-');return MOS[parseInt(a[1])-1]+' '+a[0];}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function ptEmoji(catId){return '';}
-function catEmojiMp(catId){var m={cm1:'🥛',cm2:'🌾',cm3:'🍬',cm4:'🍓',cm5:'🍫'};return m[catId]||'🌿';}
-function catEmojiMe(catId){var m={ce1:'📦',ce2:'🛍',ce3:'🎁',ce4:'🏷'};return m[catId]||'📦';}
+function ptEmoji(catId){
+  var cat=D.cpt&&D.cpt.find(function(c){return c.id===catId;});
+  if(!cat)return '<span style="font-size:13px;font-weight:700;color:var(--t3)">—</span>';
+  var initials=cat.n.trim().split(/\s+/).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
+  return '<span style="font-size:11px;font-weight:800;color:var(--br);letter-spacing:-.5px">'+initials+'</span>';
+}
+function mpInitial(name){
+  if(!name)return '<span style="font-size:13px;color:var(--t3)">—</span>';
+  return '<span style="font-size:12px;font-weight:800;color:var(--t2)">'+name.trim()[0].toUpperCase()+'</span>';
+}
+function catEmojiMp(catId){
+  var cat=(D.cmp||[]).find(function(c){return c.id===catId;});
+  if(!cat)return '<span style="font-size:12px;font-weight:700;color:var(--t3)">MP</span>';
+  var init=cat.n.trim().split(/\s+/).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
+  return '<span style="font-size:11px;font-weight:800;color:var(--t2)">'+init+'</span>';
+}
+function catEmojiMe(catId){
+  var cat=(D.cme||[]).find(function(c){return c.id===catId;});
+  if(!cat)return '<span style="font-size:12px;font-weight:700;color:var(--t3)">ME</span>';
+  var init=cat.n.trim().split(/\s+/).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
+  return '<span style="font-size:11px;font-weight:800;color:var(--t2)">'+init+'</span>';
+}
 
 // ═════════════════════════════════════════════════════
 //  SEED DATA
@@ -469,7 +491,7 @@ var SEED_EMPTY={
   ped:[],pi:[],
   emp:[],sueldos:[],
   cob:[],
-  cgi:[],gi:[]
+  cgi:[{id:"cgi_0",n:"Electricidad",e:""},{id:"cgi_1",n:"Gas",e:""},{id:"cgi_2",n:"Agua",e:""},{id:"cgi_3",n:"Alquiler / Expensas",e:""},{id:"cgi_4",n:"Sueldos",e:""},{id:"cgi_5",n:"Internet",e:""},{id:"cgi_6",n:"Telefonía",e:""},{id:"cgi_7",n:"WhatsApp Business",e:""},{id:"cgi_8",n:"Contador",e:""},{id:"cgi_9",n:"Publicidad / Marketing",e:""},{id:"cgi_10",n:"Redes Sociales / Community Manager",e:""},{id:"cgi_11",n:"Software / Suscripciones",e:""},{id:"cgi_12",n:"Mantenimiento",e:""},{id:"cgi_13",n:"Limpieza",e:""},{id:"cgi_14",n:"Impuestos",e:""}],gi:[]
 };
 
 // ═════════════════════════════════════════════════════
@@ -887,7 +909,8 @@ function renderInicio(){
   if(vg!==null){var dClass=vg>=0?'pos':'neg';deltaHtml='<span class="hero-delta '+dClass+'">'+(vg>=0?SVG_UP:SVG_DN)+' '+Math.abs(vg)+'% vs mes ant.</span>';}
   h+='<div class="hero-card">';
   h+='<div class="hero-period" onclick="openPeriodPicker()">'+perLbl(per)+SVG_CHEVRON+'</div>';
-  h+='<div class="hero-value" style="color:'+(netPos?'var(--gn)':'var(--rd)')+'">'+(net<0?'\u2212':'')+fmtK(Math.abs(net))+'</div>';
+  h+='<div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px">Resultado del período</div>';
+  h+='<div class="hero-value" style="color:'+(netPos?'var(--gn)':'var(--rd)')+'">'+(net<0?'\u2212':'')+fmt(Math.abs(net))+'</div>';
   h+='<div class="hero-sub"><span>Ventas <b style="color:var(--t1)">'+fmtK(st.v)+'</b></span><span style="color:var(--bd)">·</span><span>Margen <b style="color:var(--t1)">'+st.mg+'%</b></span></div>';
   h+=deltaHtml;
   h+='</div>';
@@ -896,7 +919,7 @@ function renderInicio(){
   if(tpend>0){
     h+='<div class="cobros-card" onclick="goPending()">';
     h+='<div class="cobros-dot" style="background:var(--amb);color:var(--am)"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>';
-    h+='<div class="cobros-body"><div class="cobros-val" style="color:var(--am)">'+fmtK(tpend)+'</div><div class="cobros-lbl">'+pend.length+' pedido'+(pend.length>1?'s':'')+' sin cobrar \u2014 toc\u00e1 para cobrar</div></div>';
+    h+='<div class="cobros-body"><div class="cobros-val" style="color:var(--am)">'+fmt(tpend)+'</div><div class="cobros-lbl">'+pend.length+' pedido'+(pend.length>1?'s':'')+' sin cobrar \u2014 toc\u00e1 para cobrar</div></div>';
     h+='<svg class="cobros-arr" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>';
     h+='</div>';
   } else {
@@ -1307,8 +1330,43 @@ function genRemitoInline(pedId){
 }
 function showCobForm(){
   var sal=pedTot(SP.id)-pedCob(SP.id);
-  var opts=D.cus.map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
-  $('csec').innerHTML='<div class="bx"><div style="font-size:15px;font-weight:600;color:var(--t1);margin-bottom:14px;font-family:DM Sans,sans-serif">Nuevo cobro</div><div class="fg"><label class="fl">Monto ($)</label><input class="fi" type="number" id="cm" value="'+sal+'"></div><div class="fg"><label class="fl">Cuenta</label><select class="fs" id="cc">'+opts+'</select></div><div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1" onclick="renderPedDet()">Cancelar</button><button class="btn bp" style="flex:2" onclick="saveCob()">Registrar</button></div></div>';
+  var cusOpts='<option value="">— Sin cuenta —</option>'
+    +(D.cus||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('')
+    +'<option value="__new__">+ Nueva cuenta...</option>';
+  $('csec').innerHTML='<div class="bx">'
+    +'<div style="font-size:15px;font-weight:600;color:var(--t1);margin-bottom:14px;font-family:DM Sans,sans-serif">Nuevo cobro</div>'
+    +'<div class="fg"><label class="fl">Monto ($)</label><input class="fi" type="number" id="cm" value="'+sal+'"></div>'
+    +'<div class="fg"><label class="fl">Cuenta</label>'
+    +'<select class="fs" id="cc" onchange="cobFormCuChg(this.value)">'+cusOpts+'</select></div>'
+    +'<div id="cob-cu-new" style="display:none;background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:-6px;margin-bottom:8px">'
+    +'<div class="fg"><label class="fl">Nombre de la cuenta *</label><input class="fi" id="cob-cu-n" placeholder="ej: Efectivo, MercadoPago..."></div>'
+    +'<div class="fg"><label class="fl">Tipo</label><select class="fs" id="cob-cu-t"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="mp">MercadoPago</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></div>'
+    +'<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1;padding:10px" onclick="cobFormCuCancel()">Cancelar</button><button class="btn bp" style="flex:2;padding:10px" onclick="cobFormCuSave()">✓ Crear</button></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1" onclick="renderPedDet()">Cancelar</button><button class="btn bp" style="flex:2" onclick="saveCob()">Registrar</button></div>'
+    +'</div>';
+}
+function cobFormCuChg(val){
+  var d=document.getElementById('cob-cu-new');
+  if(d)d.style.display=val==='__new__'?'block':'none';
+}
+function cobFormCuCancel(){
+  var d=document.getElementById('cob-cu-new');if(d)d.style.display='none';
+  var sel=document.getElementById('cc');if(sel)sel.value='';
+}
+function cobFormCuSave(){
+  var n=(document.getElementById('cob-cu-n')&&document.getElementById('cob-cu-n').value||'').trim();
+  var t=document.getElementById('cob-cu-t')&&document.getElementById('cob-cu-t').value||'otro';
+  if(!n){showToast('❌ Ingresá el nombre de la cuenta');return;}
+  var id=uid();
+  (D.cus=D.cus||[]).push({id:id,n:n,t:t});
+  saveD();
+  var sel=document.getElementById('cc');
+  if(sel){
+    var opt=document.createElement('option');opt.value=id;opt.text=n;
+    sel.insertBefore(opt,sel.lastChild);sel.value=id;
+  }
+  var d=document.getElementById('cob-cu-new');if(d)d.style.display='none';
 }
 function saveCob(){
   D.cob.push({id:uid(),d:SP.id,v:parseFloat($('cm').value)||0,f:toStr(),cu:$('cc').value});
@@ -1809,7 +1867,7 @@ function renderCatalogo(){
       }
       var pvN=(D.pvs.find(function(v){return ph[0]&&v.id===ph[0].pv;}))||null;
       var mpid=mp.id;
-      var right='<div style="font-size:14px;font-weight:600;color:var(--br)">'+fmt(pr)+'/'+mp.u+'</div>'+(dlTxt?'<div style="font-size:11px;margin-top:2px">'+dlTxt+'</div>':'')+(pr===0?'<div style="font-size:11px;color:var(--am);margin-top:2px">Sin precio</div>':'');
+      var right='<div style="font-size:14px;font-weight:600;color:var(--br)">'+fmt(pr)+'/'+mp.u+'</div>'+(dlTxt?'<div style="font-size:11px;margin-top:2px">'+dlTxt+'</div>':'')+(pr===0?'&nbsp;&nbsp;'+bdg('Sin precio','bga'):'');
       h+=li2(catEmojiMp(mp.c),mp.n,esc(cat?cat.n:'')+' · por '+mp.u,right,"go('mpDet',{id:'"+mpid+"'})");
     }
     h+='</div>';
@@ -1836,7 +1894,7 @@ function renderCatalogo(){
       var pr=ph[0]?ph[0].v:0,an=ph[1]?ph[1].v:0,dl=an?pct(pr-an,an):0;
       var dlTxt='';
       if(ph.length>=2){dlTxt=' <span style="color:'+(dl>0?'var(--rd)':'var(--gn)')+';">'+(dl>0?'↑':'↓')+Math.abs(dl)+'%</span> <span style="color:var(--t3);font-size:11px">vs anterior</span>';}
-      var meid=me.id;h+=li2(catEmojiMe(me.c),me.n,esc(me.d)+' · '+esc(cat?cat.n:''),'<div style="font-size:14px;font-weight:600;color:var(--br)">'+fmt(pr)+'/'+me.u+'</div>'+(dlTxt||'')+(pr===0?'<div style="font-size:11px;color:var(--am);margin-top:2px">Sin precio</div>':''),"go('meDet',{id:'"+meid+"'})");
+      var meid=me.id;h+=li2(catEmojiMe(me.c),me.n,esc(me.d)+' · '+esc(cat?cat.n:''),'<div style="font-size:14px;font-weight:600;color:var(--br)">'+fmt(pr)+'/'+me.u+'</div>'+(dlTxt||'')+(pr===0?'&nbsp;&nbsp;'+bdg('Sin precio','bga'):''),"go('meDet',{id:'"+meid+"'})");
     }
     h+='</div>';
     h+='<button class="btn bs2" style="margin-top:4px" onclick="go(\'createME\')">+ Nuevo material de empaque</button>';
@@ -3129,8 +3187,17 @@ function renderGastos(){
     h+='<div class="la" style="background:'+(isPending?'rgba(245,158,11,.15)':'var(--bg)')+';color:'+(isPending?'var(--am)':'var(--t1)')+'">'+esc(cat.e||cat.n.charAt(0))+'</div>';
     h+='<div class="lb"><div class="ln">'+esc(cat.n)+'</div>';
     h+='<div class="lm">'+(isPending?'<span style="color:var(--am);font-weight:500">⚠ Pendiente de carga</span>':(dlt?'<span style="color:'+(dlt>0?'var(--rd)':'var(--gn)')+';">'+(dlt>0?'↑':'↓')+Math.abs(dlt)+'% vs anterior</span>':'Cargado'))+'</div></div>';
-    h+='<div class="lr">'+(gi?'<div style="font-size:15px;font-weight:600;color:var(--t1)">'+fmtK(gi.v)+'</div>':'<div style="font-size:13px;color:var(--am);font-weight:500">+ Cargar</div>')+'</div></div>';
+    h+='<div class="lr" style="display:flex;align-items:center;gap:8px">'+(gi?'<div style="font-size:15px;font-weight:600;color:var(--t1)">'+fmtK(gi.v)+'</div>':'<div style="font-size:13px;color:var(--am);font-weight:500">+ Cargar</div>')+'<button onclick="event.stopPropagation();deleteCatGasto(\''+cid+'\')" style="border:none;background:none;color:var(--t3);cursor:pointer;font-size:16px;padding:4px">×</button></div></div>';
   }
+  // Gestión de categorías
+  h+='<div class="sc" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between">';
+  h+='<span>Categorías de gasto</span>';
+  h+='<button onclick="showNuevaCatGasto()" style="border:none;background:none;color:var(--br);font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">+ Nueva</button>';
+  h+='</div>';
+  h+='<div id="nueva-cat-gasto" style="display:none;background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:8px">';
+  h+='<div class="fg"><label class="fl">Nombre de la categoría *</label><input class="fi" id="nueva-cgi-n" placeholder="ej: Publicidad"></div>';
+  h+='<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1;padding:10px" onclick="$(\'nueva-cat-gasto\').style.display=\'none\'">Cancelar</button><button class="btn bp" style="flex:2;padding:10px" onclick="saveNuevaCatGasto()">✓ Guardar</button></div>';
+  h+='</div>';
   h+='<div id="gfw"></div></div>';
   setC(h);
   setTimeout(initGastosChart,50);
@@ -3153,6 +3220,23 @@ function initGastosChart(){
   });
 }
 
+function showNuevaCatGasto(){
+  var d=document.getElementById('nueva-cat-gasto');
+  if(d)d.style.display=d.style.display==='block'?'none':'block';
+}
+function saveNuevaCatGasto(){
+  var n=(document.getElementById('nueva-cgi-n')&&document.getElementById('nueva-cgi-n').value||'').trim();
+  if(!n){showToast('❌ Ingresá un nombre');return;}
+  (D.cgi=D.cgi||[]).push({id:uid(),n:n,e:''});
+  saveD();
+  renderGastos();
+  showToast('✅ Categoría creada');
+}
+function deleteCatGasto(id){
+  if(!confirm('¿Eliminar esta categoría? Los gastos registrados se conservarán.'))return;
+  D.cgi=D.cgi.filter(function(c){return c.id!==id;});
+  saveD();renderGastos();
+}
 function showGForm(catId){
   var per=curPer(),gi=D.gi.find(function(g){return g.c===catId&&g.p===per;}),cat=D.cgi.find(function(c){return c.id===catId;});
   var opts=D.cgi.map(function(c){return '<option value="'+c.id+'"'+(c.id===catId?' selected':'')+'>'+esc(c.n)+'</option>';}).join('');
@@ -3341,7 +3425,7 @@ function renderPvDet(){
       var pre=phe[0]?phe[0].v:0;
       var dle=phe[1]?pct(pre-phe[1].v,phe[1].v):0;
       var righte='<div style="text-align:right"><div style="font-size:14px;font-weight:600;color:'+(pre?'var(--br)':'var(--am)')+'">'+( pre?fmt(pre)+'/'+me.u:'Sin precio')+'</div>'+(dle?'<div style="font-size:11px;color:'+(dle>0?'var(--rd)':'var(--gn)')+';">'+(dle>0?'↑':'↓')+Math.abs(dle)+'%</div>':'')+'</div>';
-      h+=li2('📦',me.n,(phe.length?phe.length+' registros de precio':'Sin precios'),righte,"go('meDet',{id:'"+meid+"'})");
+      h+=li2(catEmojiMe(me.c),me.n,(phe.length?phe.length+' registros de precio':'Sin precios'),righte,"go('meDet',{id:'"+meid+"'})");
     }
   }
   if(!mps.length&&!mes.length){h+=alrt('i','Este proveedor no tiene ítems asignados aún.');}
@@ -3855,6 +3939,18 @@ function renderConfig(){
   h+='<button class="btn bp" onclick="saveEmpresa()" style="margin-top:4px">Guardar empresa</button>';
   h+='</div>';
 
+  // ── Cambiar contraseña ──
+  h+='<div class="sc">Seguridad</div>';
+  h+='<div class="bx">';
+  h+='<div id="pwd-change-form">';
+  h+='<div class="fg"><label class="fl">Contraseña actual</label><div style="position:relative"><input class="fi" type="password" id="cfg-pwd-old" placeholder="••••••••" style="padding-right:44px"><button type="button" onclick="togglePwd(\'cfg-pwd-old\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;padding:4px;color:var(--t3)"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>';
+  h+='<div class="fg"><label class="fl">Nueva contraseña</label><div style="position:relative"><input class="fi" type="password" id="cfg-pwd-new" placeholder="mínimo 6 caracteres" style="padding-right:44px"><button type="button" onclick="togglePwd(\'cfg-pwd-new\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;padding:4px;color:var(--t3)"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>';
+  h+='<div class="fg"><label class="fl">Confirmar nueva contraseña</label><input class="fi" type="password" id="cfg-pwd-confirm" placeholder="repetí la nueva contraseña"></div>';
+  h+='<div id="cfg-pwd-msg"></div>';
+  h+='<button class="btn bp" onclick="doChangePassword()">Cambiar contraseña</button>';
+  h+='</div>';
+  h+='</div>';
+
   // ── Onboarding ──
   h+='<div class="sc">Ayuda</div>';
   h+='<div class="bx">';
@@ -3879,6 +3975,33 @@ function savePersona(){
   D.persona=p;
   saveD();
   showToast('✅ Datos de contacto guardados');
+}
+function doChangePassword(){
+  var oldPwd=($('cfg-pwd-old')&&$('cfg-pwd-old').value||'').trim();
+  var newPwd=($('cfg-pwd-new')&&$('cfg-pwd-new').value||'').trim();
+  var confPwd=($('cfg-pwd-confirm')&&$('cfg-pwd-confirm').value||'').trim();
+  var msg=document.getElementById('cfg-pwd-msg');
+  function setMsg(txt,ok){if(msg)msg.innerHTML='<div style="font-size:13px;padding:10px;border-radius:8px;margin-bottom:10px;background:'+(ok?'var(--gnb)':'var(--rdb)')+';color:'+(ok?'var(--gn)':'var(--rd)')+';border:1px solid '+(ok?'var(--gnr)':'var(--rdr)')+'">'+txt+'</div>';}
+  if(!oldPwd){setMsg('❌ Ingresá tu contraseña actual',false);return;}
+  if(!newPwd||newPwd.length<6){setMsg('❌ La nueva contraseña debe tener al menos 6 caracteres',false);return;}
+  if(newPwd!==confPwd){setMsg('❌ Las contraseñas no coinciden',false);return;}
+  var user=window._auth&&window._auth.currentUser;
+  if(!user){setMsg('❌ No hay sesión activa',false);return;}
+  var cred=window._fbEmailAuthProvider.credential(user.email,oldPwd);
+  window._fbReauth(user,cred)
+    .then(function(){return window._fbUpdatePassword(user,newPwd);})
+    .then(function(){
+      setMsg('✅ Contraseña actualizada correctamente',true);
+      if($('cfg-pwd-old'))$('cfg-pwd-old').value='';
+      if($('cfg-pwd-new'))$('cfg-pwd-new').value='';
+      if($('cfg-pwd-confirm'))$('cfg-pwd-confirm').value='';
+    })
+    .catch(function(e){
+      var txt='❌ Error al cambiar la contraseña';
+      if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential')txt='❌ La contraseña actual es incorrecta';
+      if(e.code==='auth/too-many-requests')txt='❌ Demasiados intentos, esperá unos minutos';
+      setMsg(txt,false);
+    });
 }
 function saveEmpresa(){
   var e=D.empresa||{};
@@ -4404,7 +4527,7 @@ function updCatSr(){
       var pr=ph[0]?ph[0].v:0,dl=ph[1]?pct(pr-ph[1].v,ph[1].v):0;
       var dlTxt=dl?'<span style="font-size:11px;color:'+(dl>0?'var(--rd)':'var(--gn)')+';">'+(dl>0?'↑':'↓')+Math.abs(dl)+'%</span>':'';
       var cat=D.cmp.find(function(c){return c.id===mp.c;});
-      var right='<div style="font-size:14px;font-weight:600;color:var(--br)">'+fmt(pr)+'/'+mp.u+'</div>'+(dlTxt||'')+(pr===0?'<div style="font-size:11px;color:var(--am);margin-top:2px">Sin precio</div>':'');
+      var right='<div style="font-size:14px;font-weight:600;color:var(--br)">'+fmt(pr)+'/'+mp.u+'</div>'+(dlTxt||'')+(pr===0?'&nbsp;&nbsp;'+bdg('Sin precio','bga'):'');
       h+=li2(catEmojiMp(mp.c),mp.n,esc(cat?cat.n:'')+' · por '+mp.u,right,"go('mpDet',{id:'"+mpid+"'})");
     }
   } else if(tab==='me'){
