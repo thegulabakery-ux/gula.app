@@ -2652,7 +2652,7 @@ function renderCreateMP(){
   h+='<div id="mpc-mode-total" style="display:none">';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
   h+='<div class="fg"><label class="fl">Total gastado ($)</label><input class="fi" type="number" id="mpc-tot" placeholder="ej: 4200" inputmode="decimal" oninput="mpCreateCalcUnit()"></div>';
-  h+='<div class="fg"><label class="fl" id="mpc-qty-lbl">Cantidad (kg)</label><input class="fi" type="number" id="mpc-qty" placeholder="ej: 1" inputmode="decimal" oninput="mpCreateCalcUnit()"></div>';
+  h+='<div class="fg"><label class="fl" id="mpc-qty-lbl">Cantidad</label><input class="fi" type="number" id="mpc-qty" placeholder="ej: 1" inputmode="decimal" oninput="mpCreateCalcUnit()"></div>';
   h+='</div>';
   h+='<div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center;margin-bottom:8px;font-size:13px"><span style="color:var(--t3)">Precio unitario calculado:</span> <b id="mpc-unit-calc" style="color:var(--br)">—</b></div>';
   h+='</div>';
@@ -2776,7 +2776,9 @@ function saveMp(){
 function renderCreateME(){
   setH('Nuevo material de empaque','','catalogo','Catálogo','');
   var catOpts='<option value="">— Sin categoría —</option>'+(D.cme||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
-  var pvOpts=D.pvs.map(function(v){return '<option value="'+v.id+'">'+esc(v.n)+'</option>';}).join('');
+  var pvOptsMe='<option value="">— Sin proveedor —</option>'+(D.pvs||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(v){return '<option value="'+v.id+'">'+esc(v.n)+'</option>';}).join('');
+  pvOptsMe+='<option value="__new__">+ Agregar proveedor...</option>';
+  pvOptsMe+='<option value="__new__">+ Agregar proveedor...</option>';
   var h='<div class="p">';
   h+='<div class="fg"><label class="fl">Nombre *</label><input class="fi" id="men" placeholder="ej: Caja torta grande"></div>';
   h+='<div class="fg"><label class="fl">Detalle (dimensiones, etc)</label><input class="fi" id="med" placeholder="ej: 25×25×15"></div>';
@@ -2786,7 +2788,11 @@ function renderCreateME(){
   h+='<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1" onclick="$(\'me-cat-new-inline\').style.display=\'none\';$(\'mec\').value=\'\'">Cancelar</button><button class="btn bp" style="flex:2" onclick="saveNewMeCatInline()">✓ Crear categoría</button></div>';
   h+='</div>';
   h+='<div class="fg"><label class="fl">Unidad</label><select class="fs" id="meu"><option value="u">u (unidad)</option><option value="hoja">hoja</option><option value="metro">metro</option><option value="rollo">rollo</option></select></div>';
-  h+='<div class="fg"><label class="fl">Proveedor</label><select class="fs" id="mepv">'+pvOpts+'</select></div>';
+  h+='<div class="fg"><label class="fl">Proveedor</label><select class="fs" id="mepv" onchange="if(this.value===\'__new__\'){$(\'me-create-pv-new\').style.display=\'block\';}else{$(\'me-create-pv-new\').style.display=\'none\';}">'+pvOptsMe+'</select></div>';
+  h+='<div id="me-create-pv-new" style="display:none;background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:-6px;margin-bottom:8px">';
+  h+='<div class="fg"><label class="fl">Nombre del proveedor *</label><input class="fi" id="me-create-pv-n" placeholder="ej: Caja Express"></div>';
+  h+='<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1;padding:10px" onclick="var d=$(\'me-create-pv-new\');if(d)d.style.display=\'none\';$(\'mepv\').value=\'\'">Cancelar</button><button class="btn bp" style="flex:2;padding:10px" onclick="saveNewPvFromMe()">✓ Guardar</button></div>';
+  h+='</div>';
   h+='<div class="dv"></div><div class="fg"><label class="fl">Precio inicial por unidad ($, opcional)</label><input class="fi" type="number" id="meprc" placeholder="0"></div>';
   h+='<button class="btn bp" onclick="saveME()">Crear material de empaque</button>';
   h+='</div>';
@@ -2805,6 +2811,19 @@ function saveNewMeCatInline(){
     sel.insertBefore(opt,sel.lastChild);
   }
   var d=$('me-cat-new-inline');if(d)d.style.display='none';
+}
+function saveNewPvFromMe(){
+  var n=($('me-create-pv-n')&&$('me-create-pv-n').value||'').trim();
+  if(!n){showToast('❌ Ingresá el nombre del proveedor');return;}
+  var id=uid();
+  (D.pvs=D.pvs||[]).push({id:id,n:n});
+  saveD();
+  var sel=$('mepv');
+  if(sel){
+    var opt=document.createElement('option');opt.value=id;opt.text=n;
+    sel.insertBefore(opt,sel.lastChild);sel.value=id;
+  }
+  var d=$('me-create-pv-new');if(d)d.style.display='none';
 }
 function saveME(){
   var n=($("men")&&$("men").value||"").trim();
@@ -4693,7 +4712,7 @@ function openNewMpModal(cb){
     +'<div class="fg"><label class="fl">Nombre de la categoría *</label><input class="fi" id="mp-modal-cat-n" placeholder="ej: Saborizantes"></div>'
     +'<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1;padding:10px" onclick="mpModalCatCancel()">Cancelar</button><button class="btn bp" style="flex:2;padding:10px" onclick="mpModalCatSave()">✓ Crear</button></div>'
     +'</div>'
-    +'<div class="fg"><label class="fl">Unidad de medida</label><select class="fs" id="mp-modal-u"><option value="kg">kg (kilogramo)</option><option value="g">g (gramo)</option><option value="lt">lt (litro)</option><option value="ml">ml (mililitro)</option><option value="u">u (unidad)</option></select></div>'
+    +'<div class="fg"><label class="fl">Proveedor habitual</label><select class="fs" id="mp-modal-pv" onchange="mpModalPvChg(this.value)"><option value="">— Sin proveedor —</option>'+mpModalPvOpts()+'<option value="__new__">+ Agregar proveedor...</option></select></div>'+'<div id="mp-modal-pv-new" style="display:none;background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:-6px;margin-bottom:8px">'+'<div class="fg"><label class="fl">Nombre del proveedor *</label><input class="fi" id="mp-modal-pv-n" placeholder="ej: Distribuidora Norte"></div>'+'<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1;padding:10px" onclick="mpModalPvCancel()">Cancelar</button><button class="btn bp" style="flex:2;padding:10px" onclick="mpModalPvSave()">✓ Crear</button></div>'+'</div>'+'<div class="fg"><label class="fl">Unidad de medida</label><select class="fs" id="mp-modal-u" onchange="mpModalUpdAllLabels()"><option value="kg">kg (kilogramo)</option><option value="g">g (gramo)</option><option value="lt">lt (litro)</option><option value="ml">ml (mililitro)</option><option value="u">u (unidad)</option></select></div>'
     +'<div class="dv"></div>'
     +'<div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px">Precio inicial (opcional)</div>'
     +'<div style="display:flex;gap:0;margin-bottom:12px;border:1px solid var(--bd);border-radius:8px;overflow:hidden">'
@@ -4701,12 +4720,12 @@ function openNewMpModal(cb){
     +'<button id="mp-modal-m-total" onclick="mpModalModeTotal()" style="flex:1;padding:8px;border:none;background:var(--bd);color:var(--t2);cursor:pointer;font-size:12px">Total + cantidad</button>'
     +'</div>'
     +'<div id="mp-modal-mode-unit">'
-    +'<div class="fg"><label class="fl" id="mp-modal-price-lbl">Precio por kg ($)</label><input class="fi" type="number" id="mp-modal-prc" placeholder="0" inputmode="decimal" oninput="mpModalUpdPriceLabel()"></div>'
+    +'<div class="fg"><label class="fl" id="mp-modal-price-lbl">Precio por unidad ($)</label><input class="fi" type="number" id="mp-modal-prc" placeholder="0" inputmode="decimal" oninput="mpModalUpdPriceLabel()"></div>'
     +'</div>'
     +'<div id="mp-modal-mode-total" style="display:none">'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
     +'<div class="fg"><label class="fl">Total gastado ($)</label><input class="fi" type="number" id="mp-modal-tot" placeholder="ej: 4200" inputmode="decimal" oninput="mpModalCalcUnit()"></div>'
-    +'<div class="fg"><label class="fl" id="mp-modal-qty-lbl">Cantidad (kg)</label><input class="fi" type="number" id="mp-modal-qty" placeholder="ej: 1" inputmode="decimal" oninput="mpModalCalcUnit()"></div>'
+    +'<div class="fg"><label class="fl" id="mp-modal-qty-lbl">Cantidad</label><input class="fi" type="number" id="mp-modal-qty" placeholder="ej: 1" inputmode="decimal" oninput="mpModalCalcUnit()"></div>'
     +'</div>'
     +'<div style="padding:10px;background:var(--bg);border-radius:8px;text-align:center;margin-bottom:8px"><span style="font-size:12px;color:var(--t3)">Precio unitario calculado:</span> <b id="mp-modal-unit-calc" style="font-size:15px;color:var(--br)">—</b></div>'
     +'</div>'
@@ -4804,12 +4823,16 @@ function mpModalModeTotal(){
   if(bt){bt.style.background='var(--br)';bt.style.color='#fff';}
   if(bu){bu.style.background='var(--bd)';bu.style.color='var(--t2)';}
 }
-function mpModalUpdPriceLabel(){
+function mpModalUpdPriceLabel(){mpModalUpdAllLabels();}
+function mpModalUpdAllLabels(){
   var sel=document.getElementById('mp-modal-u');
   var u=sel?sel.value:'kg';
-  var lbl=document.getElementById('mp-modal-price-lbl');
   var uLabels={kg:'kilogramo',g:'gramo',lt:'litro',ml:'mililitro',u:'unidad'};
-  if(lbl)lbl.textContent='Precio por '+(uLabels[u]||u)+' ($)';
+  var uLabel=uLabels[u]||u;
+  var lbl=document.getElementById('mp-modal-price-lbl');
+  if(lbl)lbl.textContent='Precio por '+uLabel+' ($)';
+  var qlbl=document.getElementById('mp-modal-qty-lbl');
+  if(qlbl)qlbl.textContent='Cantidad ('+uLabel+')';
 }
 function mpModalCalcUnit(){
   var tot=parseFloat(document.getElementById('mp-modal-tot')&&document.getElementById('mp-modal-tot').value)||0;
@@ -4821,6 +4844,59 @@ function mpModalCalcUnit(){
   var el=document.getElementById('mp-modal-unit-calc');
   if(el)el.textContent=(tot&&qty)?fmt(tot/qty)+'/'+u:'—';
 }
+
+// ─── Helpers proveedor en modales ────────────────────
+function mpModalPvOpts(){
+  return (D.pvs||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');})
+    .map(function(v){return '<option value="'+v.id+'">'+esc(v.n)+'</option>';}).join('');
+}
+function mpModalPvChg(val){
+  var d=document.getElementById('mp-modal-pv-new');
+  if(d)d.style.display=val==='__new__'?'block':'none';
+}
+function mpModalPvCancel(){
+  var d=document.getElementById('mp-modal-pv-new');if(d)d.style.display='none';
+  var sel=document.getElementById('mp-modal-pv');if(sel)sel.value='';
+}
+function mpModalPvSave(){
+  var n=(document.getElementById('mp-modal-pv-n')&&document.getElementById('mp-modal-pv-n').value||'').trim();
+  if(!n){showToast('❌ Ingresá el nombre del proveedor');return;}
+  var id=uid();
+  (D.pvs=D.pvs||[]).push({id:id,n:n});
+  saveD();
+  var sel=document.getElementById('mp-modal-pv');
+  if(sel){
+    var opt=document.createElement('option');opt.value=id;opt.text=n;
+    sel.insertBefore(opt,sel.lastChild);sel.value=id;
+  }
+  var d=document.getElementById('mp-modal-pv-new');if(d)d.style.display='none';
+}
+function meModalPvOpts(){
+  return (D.pvs||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');})
+    .map(function(v){return '<option value="'+v.id+'">'+esc(v.n)+'</option>';}).join('');
+}
+function meModalPvChg(val){
+  var d=document.getElementById('me-modal-pv-new');
+  if(d)d.style.display=val==='__new__'?'block':'none';
+}
+function meModalPvCancel(){
+  var d=document.getElementById('me-modal-pv-new');if(d)d.style.display='none';
+  var sel=document.getElementById('me-modal-pv');if(sel)sel.value='';
+}
+function meModalPvSave(){
+  var n=(document.getElementById('me-modal-pv-n')&&document.getElementById('me-modal-pv-n').value||'').trim();
+  if(!n){showToast('❌ Ingresá el nombre del proveedor');return;}
+  var id=uid();
+  (D.pvs=D.pvs||[]).push({id:id,n:n});
+  saveD();
+  var sel=document.getElementById('me-modal-pv');
+  if(sel){
+    var opt=document.createElement('option');opt.value=id;opt.text=n;
+    sel.insertBefore(opt,sel.lastChild);sel.value=id;
+  }
+  var d=document.getElementById('me-modal-pv-new');if(d)d.style.display='none';
+}
+
 function saveMpFromModal(){
   var n=(document.getElementById('mp-modal-n')&&document.getElementById('mp-modal-n').value||'').trim();
   if(!n){alert('El nombre es obligatorio');document.getElementById('mp-modal-n').focus();return;}
@@ -4830,7 +4906,9 @@ function saveMpFromModal(){
   var uSel=document.getElementById('mp-modal-u');
   var uVal=uSel?uSel.value:'kg';
   var id=uid();
-  (D.mp=D.mp||[]).push({id:id,n:n,c:catVal,u:uVal,pv:''});
+  var pvSel=document.getElementById('mp-modal-pv');
+  var pvVal=pvSel&&pvSel.value!=='__new__'?pvSel.value:'';
+  (D.mp=D.mp||[]).push({id:id,n:n,c:catVal,u:uVal,pv:pvVal});
   // Price
   var modeTotal=document.getElementById('mp-modal-mode-total')&&document.getElementById('mp-modal-mode-total').style.display!=='none';
   var prc=0;
@@ -4873,7 +4951,7 @@ function openNewMeModal(cb){
     +'<div class="fg"><label class="fl">Nombre de la categoría *</label><input class="fi" id="me-modal-cat-n" placeholder="ej: Cajas"></div>'
     +'<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1;padding:10px" onclick="meModalCatCancel()">Cancelar</button><button class="btn bp" style="flex:2;padding:10px" onclick="meModalCatSave()">✓ Crear</button></div>'
     +'</div>'
-    +'<div class="fg"><label class="fl">Unidad de medida</label><select class="fs" id="me-modal-u"><option value="u">u (unidad)</option><option value="cm">cm (centímetro)</option><option value="m">m (metro)</option><option value="kg">kg (kilogramo)</option><option value="g">g (gramo)</option></select></div>'
+    +'<div class="fg"><label class="fl">Proveedor habitual</label><select class="fs" id="me-modal-pv" onchange="meModalPvChg(this.value)"><option value="">— Sin proveedor —</option>'+meModalPvOpts()+'<option value="__new__">+ Agregar proveedor...</option></select></div>'+'<div id="me-modal-pv-new" style="display:none;background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:-6px;margin-bottom:8px">'+'<div class="fg"><label class="fl">Nombre del proveedor *</label><input class="fi" id="me-modal-pv-n" placeholder="ej: Caja Express"></div>'+'<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1;padding:10px" onclick="meModalPvCancel()">Cancelar</button><button class="btn bp" style="flex:2;padding:10px" onclick="meModalPvSave()">✓ Crear</button></div>'+'</div>'+'<div class="fg"><label class="fl">Unidad de medida</label><select class="fs" id="me-modal-u" onchange="meModalUpdAllLabels()"><option value="u">u (unidad)</option><option value="cm">cm (centímetro)</option><option value="m">m (metro)</option><option value="kg">kg (kilogramo)</option><option value="g">g (gramo)</option></select></div>'
     +'<div class="dv"></div>'
     +'<div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px">Precio inicial (opcional)</div>'
     +'<div style="display:flex;gap:0;margin-bottom:12px;border:1px solid var(--bd);border-radius:8px;overflow:hidden">'
@@ -4936,10 +5014,15 @@ function meModeTotal(){
   document.getElementById('me-modal-m-unit').style.background='var(--bd)';
   document.getElementById('me-modal-m-unit').style.color='var(--t2)';
 }
-function meModalUpdLabel(){
+function meModalUpdLabel(){meModalUpdAllLabels();}
+function meModalUpdAllLabels(){
   var u=(document.getElementById('me-modal-u')&&document.getElementById('me-modal-u').value)||'u';
+  var uLabels={u:'unidad',cm:'centímetro',m:'metro',kg:'kilogramo',g:'gramo'};
+  var uLabel=uLabels[u]||u;
   var lbl=document.getElementById('me-modal-price-lbl');
-  if(lbl)lbl.textContent='Precio por '+u+' ($)';
+  if(lbl)lbl.textContent='Precio por '+uLabel+' ($)';
+  var qlbl=document.getElementById('me-modal-qty-lbl');
+  if(qlbl)qlbl.textContent='Cantidad ('+uLabel+')';
 }
 function meModalCalcUnit(){
   var tot=parseFloat(document.getElementById('me-modal-tot')&&document.getElementById('me-modal-tot').value)||0;
@@ -4956,7 +5039,9 @@ function saveMeFromModal(){
   var uSel=document.getElementById('me-modal-u');
   var uVal=uSel?uSel.value:'u';
   var id=uid();
-  (D.me=D.me||[]).push({id:id,n:n,c:catVal,u:uVal,pv:''});
+  var pvSelMe=document.getElementById('me-modal-pv');
+  var pvValMe=pvSelMe&&pvSelMe.value!=='__new__'?pvSelMe.value:'';
+  (D.me=D.me||[]).push({id:id,n:n,c:catVal,u:uVal,pv:pvValMe});
   var modeTotal=document.getElementById('me-modal-mode-total')&&document.getElementById('me-modal-mode-total').style.display!=='none';
   var prc=0;
   if(modeTotal){
