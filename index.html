@@ -4310,7 +4310,7 @@ function renderCreatePT(){
     h+='</div>';
     h+='<div id="rec-sr-mp-res">';
     var srMp=(NPT._srMp||'').toLowerCase();
-    var visMps=D.mp.filter(function(m){return !srMp||m.n.toLowerCase().indexOf(srMp)>=0;}).slice(0,srMp?20:8);
+    var visMps=D.mp.filter(function(m){return !srMp||m.n.toLowerCase().indexOf(srMp)>=0;}).sort(function(a,b){return a.n.localeCompare(b.n,'es');}).slice(0,srMp?20:8);
     if(visMps.length){
       h+='<div class="bx" style="padding:4px 14px;margin-bottom:12px">';
       for(var i=0;i<visMps.length;i++){
@@ -4348,7 +4348,7 @@ function renderCreatePT(){
     h+='</div>';
     h+='<div id="rec-sr-me-res">';
     var srMe=(NPT._srMe||'').toLowerCase();
-    var visMes=D.me.filter(function(m){return !srMe||m.n.toLowerCase().indexOf(srMe)>=0;}).slice(0,srMe?20:6);
+    var visMes=D.me.filter(function(m){return !srMe||m.n.toLowerCase().indexOf(srMe)>=0;}).sort(function(a,b){return a.n.localeCompare(b.n,'es');}).slice(0,srMe?20:6);
     if(visMes.length){
       h+='<div class="bx" style="padding:4px 14px;margin-bottom:12px">';
       for(var i=0;i<visMes.length;i++){
@@ -4374,8 +4374,7 @@ function renderCreatePT(){
     var co2=NPT.recItems.reduce(function(s,i){return s+(i.t==='MP'?latMp(i.i):latMe(i.i))*i.q;},0);
     var costoUn=co2/(NPT.yields||1);
     var sugerido=co2>0?Math.ceil(costoUn/0.60):0; // margen 40%: precio = costo/(1-0.40)
-    // Si NPT.v está vacío, proponer el sugerido
-    if(!NPT.v&&sugerido>0)NPT.v=String(sugerido);
+    // NPT.v lo define el usuario — no se auto-completa
     var vv2=parseFloat(NPT.v)||0;
     var mg2=vv2>0?pct(vv2-co2,vv2):0;
     h+='<p style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">Definí el precio de venta</p>';
@@ -4387,13 +4386,6 @@ function renderCreatePT(){
     h+='<div class="rp"><span>Ingredientes</span><span>'+NPT.recItems.length+'</span></div>';
     h+='</div>';
     // Precio sugerido
-    if(sugerido>0){
-      h+='<div style="background:var(--brl);border:1px solid var(--brb);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">';
-      h+='<div><div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Precio sugerido (40% margen)</div>';
-      h+='<div style="font-size:22px;font-weight:800;color:var(--br);font-family:DM Sans,sans-serif">'+fmt(sugerido)+'</div></div>';
-      h+='<button onclick="document.getElementById(\'pt-v2\').value='+sugerido+';NPT.v=\''+sugerido+'\';updPtMgFromRec()" class="btn bp" style="min-width:80px;padding:8px 14px;font-size:13px">Usar</button>';
-      h+='</div>';
-    }
     h+=fg('Precio de catálogo ($)','<input class="fi" type="number" id="pt-v2" value="'+esc(NPT.v)+'" oninput="NPT.v=this.value;updPtMgFromRec()" placeholder="ej: '+sugerido+'" inputmode="decimal">');
     h+='<div id="pt-mg2" style="font-size:13px;color:var(--t2);margin-top:-8px;margin-bottom:4px">'+mgTxt(mg2)+'</div>';
     if(sugerido>0)h+='<div style="font-size:12px;color:var(--t3);margin-bottom:14px">Precio sugerido para un margen bruto del 40%: <b style="color:var(--br)">'+fmt(sugerido)+'</b></div>';
