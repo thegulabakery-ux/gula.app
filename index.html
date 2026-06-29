@@ -1902,7 +1902,7 @@ function filterBar(cfg){
 function renderCatalogo(){
   var tabs=[['productos','Productos'],['mp','Ingredientes'],['me','Empaque'],['recetas','Recetas']];
   var tabH=tabs.map(function(t){return '<button class="tab'+(SS.cTab===t[0]?' on':'')+'" onclick="SS.cTab=\''+t[0]+'\';SS.cSr=\'\';SS.cFl=\'todos\';renderCatalogo()">'+t[1]+'</button>';}).join('');
-  $('H').innerHTML='<div class="hd"><div class="ht">Catálogo</div></div>';
+  $('H').innerHTML='<div class="hd"><div class="hr"><div class="ht">Catálogo</div><button onclick="go(\'editCatPrices\')" style="border:none;background:var(--brl);color:var(--br);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;white-space:nowrap">✏️ Precios</button></div></div>';
   var SVG_SRCH_CAT='<svg viewBox=\"0 0 24 24\" style=\"width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><line x1=\"21\" y1=\"21\" x2=\"16.65\" y2=\"16.65\"/></svg>';
   var h='<div class="p">';
   h+='<div class="tb">'+tabH+'</div>';
@@ -2531,7 +2531,9 @@ function saveEditItemModal(){
   }
   saveD();
   closeEditItemModal();
-  renderCreateReceta();
+  // Refrescar el flujo actual (createReceta o createPT)
+  if(SC==='createPT'){renderCreatePT();}
+  else{renderCreateReceta();}
   showToast('✅ '+esc(obj.n)+' actualizado');
 }
 
@@ -4237,14 +4239,14 @@ function renderCreatePT(){
   if(st===1){
     var catOpts='<option value="">— Sin categoría —</option>'+(D.cpt||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'"'+(c.id===NPT.c?' selected':'')+'>'+ptEmoji(c.id)+' '+esc(c.n)+'</option>';}).join('');
     h+='<p style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">Datos del producto</p>';
-    h+='<p style="font-size:13px;color:var(--t2);margin-bottom:18px">Nombre, categoría y precio de catálogo</p>';
+    h+='<p style="font-size:13px;color:var(--t2);margin-bottom:18px">Ingresá el nombre y la categoría. El precio lo definís al final, una vez calculado el costo.</p>';
     h+=fg('Nombre *','<input class="fi" id="pt-n" value="'+esc(NPT.n)+'" placeholder="ej: Budín de limón 1.2kg" oninput="NPT.n=this.value">');
     h+=fg('Categoría','<select class="fs" id="pt-c" onchange="if(this.value===\'__new__\'){showPtCatNew();}else{hidePtCatNew();NPT.c=this.value;}">'+catOpts+'<option value="__new__">+ Nueva categoría...</option></select>');
     h+='<div id="pt-cat-new" style="display:none;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:-4px;margin-bottom:8px">';
     h+='<div class="fg"><label class="fl">Nombre *</label><input class="fi" id="pt-cat-n" placeholder="ej: Alfajores, Panes..."></div>';
     h+='<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1" onclick="hidePtCatNew()">Cancelar</button><button class="btn bp" style="flex:2" onclick="savePtNewCat()">✓ Crear</button></div>';
     h+='</div>';
-    h+=fg('Precio de catálogo ($)','<input class="fi" type="number" id="pt-v" value="'+esc(NPT.v)+'" placeholder="ej: 11000" oninput="NPT.v=this.value">','Podés ajustarlo luego');
+
     h+='<button class="btn bp" onclick="var n=($( \'pt-n\').value||\'\').trim();if(!n){alert(\'El nombre es obligatorio\');return;}NPT.n=n;NPT.c=$( \'pt-c\').value;NPT.v=$( \'pt-v\').value;NPT.step=2;renderCreatePT()">Siguiente — Cargar receta →</button>';
     h+='<button class="btn bs2" onclick="var n=($( \'pt-n\').value||\'\').trim();if(!n){alert(\'El nombre es obligatorio\');return;}var id=uid();(D.pt=D.pt||[]).push({id:id,n:n,c:$( \'pt-c\').value,v:parseFloat($( \'pt-v\').value)||0,yields:1});saveD();SS.cTab=\'productos\';NPT={step:1,n:\'\',c:\'cp1\',v:\'\',recItems:[],recTab:\'MP\',recAdd:false,yields:1};go(\'catalogo\')">Guardar sin receta por ahora</button>';
   }
@@ -4348,11 +4350,29 @@ function renderCreatePT(){
 
   if(st===3){
     var co2=NPT.recItems.reduce(function(s,i){return s+(i.t==='MP'?latMp(i.i):latMe(i.i))*i.q;},0);
-    var mg2=parseFloat(NPT.v)>0?pct(parseFloat(NPT.v)-co2,parseFloat(NPT.v)):0;
-    h+='<p style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">Precio de catálogo</p>';
-    h+='<p style="font-size:13px;color:var(--t2);margin-bottom:18px">Revisá el costo calculado y confirmá el precio</p>';
-    h+='<div class="bx" style="margin-bottom:14px"><div class="rp"><span>Costo calculado</span><span style="font-weight:600;color:var(--t1)">'+fmt(co2)+'</span></div><div class="rp"><span>Ingredientes en receta</span><span>'+NPT.recItems.length+'</span></div></div>';
-        h+=fg('Precio de catálogo ($)','<input class="fi" type="number" id="pt-v2" value="'+esc(NPT.v)+'" oninput="NPT.v=this.value;updPtMgFromRec()" placeholder="ej: 11000" inputmode="decimal">');
+    var costoUn=co2/(NPT.yields||1);
+    var sugerido=co2>0?Math.ceil(costoUn/0.60):0; // margen 40%: precio = costo/(1-0.40)
+    // Si NPT.v está vacío, proponer el sugerido
+    if(!NPT.v&&sugerido>0)NPT.v=String(sugerido);
+    var vv2=parseFloat(NPT.v)||0;
+    var mg2=vv2>0?pct(vv2-co2,vv2):0;
+    h+='<p style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">Definí el precio de venta</p>';
+    h+='<p style="font-size:13px;color:var(--t2);margin-bottom:16px">El costo está calculado. Fijá un precio que te deje un margen saludable.</p>';
+    // Resumen de costo
+    h+='<div class="bx" style="margin-bottom:14px;padding:14px 16px">';
+    h+='<div class="rp"><span>Costo total receta</span><span style="font-weight:700;color:var(--t1)">'+fmt(co2)+'</span></div>';
+    if(NPT.yields>1)h+='<div class="rp"><span>Costo por unidad ('+NPT.yields+' u)</span><span style="font-weight:700;color:var(--t1)">'+fmt(costoUn)+'</span></div>';
+    h+='<div class="rp"><span>Ingredientes</span><span>'+NPT.recItems.length+'</span></div>';
+    h+='</div>';
+    // Precio sugerido
+    if(sugerido>0){
+      h+='<div style="background:var(--brl);border:1px solid var(--brb);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">';
+      h+='<div><div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Precio sugerido (40% margen)</div>';
+      h+='<div style="font-size:22px;font-weight:800;color:var(--br);font-family:DM Sans,sans-serif">'+fmt(sugerido)+'</div></div>';
+      h+='<button onclick="document.getElementById(\'pt-v2\').value='+sugerido+';NPT.v=\''+sugerido+'\';updPtMgFromRec()" class="btn bp" style="min-width:80px;padding:8px 14px;font-size:13px">Usar</button>';
+      h+='</div>';
+    }
+    h+=fg('Precio de catálogo ($)','<input class="fi" type="number" id="pt-v2" value="'+esc(NPT.v)+'" oninput="NPT.v=this.value;updPtMgFromRec()" placeholder="ej: '+sugerido+'" inputmode="decimal">');
     h+='<div id="pt-mg2" style="font-size:13px;color:var(--t2);margin-top:-8px;margin-bottom:14px">'+mgTxt(mg2)+'</div>';
     h+='<button class="btn bp" onclick="savePT()">✓ Crear producto</button>';
   }
@@ -4365,9 +4385,14 @@ function nptAddItem(){
   NPT.recItems.push({t:NPT.recTab,i:id,q:qty});NPT.recAdd=false;renderCreatePT();
 }
 function savePT(){
-  var n=NPT.n.trim();if(!n){alert('El nombre es obligatorio');return;}
-  var id=uid();
+  var n=NPT.n.trim();if(!n){showToast('❌ El nombre es obligatorio');return;}
   var pv=parseFloat(($('pt-v2')?$('pt-v2').value:NPT.v))||0;
+  if(!pv||pv<=0){
+    showToast('❌ El precio debe ser mayor a cero');
+    var inp=document.getElementById('pt-v2');if(inp){inp.focus();inp.style.borderColor='var(--rd)';}
+    return;
+  }
+  var id=uid();
   (D.pt=D.pt||[]).push({id:id,n:n,c:NPT.c,v:pv,yields:NPT.yields||1});
   NPT.recItems.forEach(function(it){(D.rec=D.rec||[]).push({id:uid(),pt:id,t:it.t,i:it.i,q:it.q});});
   saveD();NPT={step:1,n:'',c:'cp1',v:'',recItems:[],recTab:'MP',recAdd:false,yields:1};SS.cTab='productos';go('catalogo');
