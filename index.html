@@ -851,7 +851,7 @@ function openQAGastoSheet(){
   // Abrir selector de categoría de gasto y período
   if(!(D.cgi&&D.cgi.length)){showToast('❌ Primero creá categorías de gasto en Más → Gastos fijos');return;}
   var per2=SS.gasPer||curPer();
-  var catOpts=(D.cgi||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
+  var catOpts=(D.cgi||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   var wrap=document.createElement('div');
   wrap.id='gasto-qa-wrap';
   wrap.style.cssText='position:absolute;inset:0;z-index:210;pointer-events:none;';
@@ -1248,7 +1248,7 @@ function clrGastoAddFw(){var fw=$('gasto-add-fw');if(fw)fw.innerHTML='';}
 function clrSueldoFw(){$('sueldo-fw').innerHTML='';}
 function clrEmpFw(){$('emp-fw').innerHTML='';}
 function showSueldoForm(){
-  var empOpts=(D.emp||[]).map(function(e){return '<option value="'+e.id+'">'+esc(e.n)+'</option>';}).join('');
+  var empOpts=(D.emp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(e){return '<option value="'+e.id+'">'+esc(e.n)+'</option>';}).join('');
   $('sueldo-fw').innerHTML='<div class="bx" style="margin-bottom:8px">'
     +'<div style="font-size:14px;font-weight:600;margin-bottom:12px">Registrar pago de sueldo</div>'
     +'<div class="fg"><label class="fl">Empleado</label><select class="fs" id="su-em">'+empOpts+'</select></div>'
@@ -1427,7 +1427,7 @@ function genRemitoInline(pedId){
 function showCobForm(){
   var sal=pedTot(SP.id)-pedCob(SP.id);
   var cusOpts='<option value="">— Sin cuenta —</option>'
-    +(D.cus||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('')
+    +(D.cus||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('')
     +'<option value="__new__">+ Nueva cuenta...</option>';
   $('csec').innerHTML='<div class="bx">'
     +'<div style="font-size:15px;font-weight:600;color:var(--t1);margin-bottom:14px;font-family:DM Sans,sans-serif">Nuevo cobro</div>'
@@ -2141,7 +2141,7 @@ function renderMpDet(){
   h+='</div>';
   // ── Registrar nuevo precio ────────────────────────
   h+='<div class="sc">Actualizar precio</div>';
-  var pvOpts2=(D.pvs||[]).map(function(v){return '<option value="'+v.id+'"'+(mp.pv===v.id?' selected':'')+'>'+esc(v.n)+'</option>';}).join('');
+  var pvOpts2=(D.pvs||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(v){return '<option value="'+v.id+'"'+(mp.pv===v.id?' selected':'')+'>'+esc(v.n)+'</option>';}).join('');
   h+='<div class="bx" id="mpd-form">';
   h+='<div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--bd);border-radius:8px;overflow:hidden">';
   h+='<button id="mpd-m-unit" onclick="mpPriceModeUnit()" style="flex:1;padding:8px;border:none;background:var(--br);color:#fff;cursor:pointer;font-size:12px;font-weight:600">Por '+esc(mp.u)+'</button>';
@@ -2486,7 +2486,7 @@ function openEditItemModal(t,id){
   var obj=t==='MP'?(D.mp||[]).find(function(m){return m.id===id;}):(D.me||[]).find(function(m){return m.id===id;});
   if(!obj){showToast('❌ Ítem no encontrado');return;}
   var latPr=t==='MP'?latMp(id):latMe(id);
-  var pvOpts='<option value="">— Sin proveedor —</option>'+(D.pvs||[]).map(function(v){return '<option value="'+v.id+'"'+(obj.pv===v.id?' selected':'')+'>'+esc(v.n)+'</option>';}).join('');
+  var pvOpts='<option value="">— Sin proveedor —</option>'+(D.pvs||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(v){return '<option value="'+v.id+'"'+(obj.pv===v.id?' selected':'')+'>'+esc(v.n)+'</option>';}).join('');
   var catArr=t==='MP'?(D.cmp||[]):(D.cme||[]);
   var catOpts='<option value="">— Sin categoría —</option>'+catArr.map(function(c){return '<option value="'+c.id+'"'+(obj.c===c.id?' selected':'')+'>'+esc(c.n)+'</option>';}).join('');
   var uOpts=t==='MP'
@@ -2853,7 +2853,7 @@ function renderCreateMP(){
   setH('Nuevo ingrediente','','catalogo','Catálogo','');
   var catOpts='<option value="">— Sin categoría —</option>'+(D.cmp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return "<option value='"+c.id+"'>"+esc(c.n)+"</option>";}).join("");
   catOpts += "<option value='__new__'>+ Crear nueva categoría...</option>";
-  var pvOpts=(D.pvs||[]).map(function(v){return "<option value='"+v.id+"'>"+esc(v.n)+"</option>";}).join("");
+  var pvOpts=(D.pvs||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(v){return "<option value='"+v.id+"'>"+esc(v.n)+"</option>";}).join("");
   pvOpts += "<option value='__new__'>+ Agregar proveedor...</option>";
   var h='<div class="p">';
   h+='<div class="fg"><label class="fl">Nombre del ingrediente *</label><input class="fi" id="mpn" placeholder="ej: Manteca"></div>';
@@ -4293,6 +4293,7 @@ function renderCreatePT(){
         h+='<button onclick="NPT.recItems['+riIdx+'].q=Math.max(0.01,+(NPT.recItems['+riIdx+'].q-0.5).toFixed(2));renderCreatePT()" style="width:28px;height:28px;border:none;border-radius:50%;background:var(--bd);color:var(--t1);cursor:pointer;font-size:14px">-</button>';
         h+='<input type="number" value="'+ri.q+'" step="0.01" min="0.01" onblur="var v=parseFloat(this.value),ri2=NPT.recItems['+riIdx+'];if(ri2&&v>0)ri2.q=+v.toFixed(3);renderCreatePT()" style="width:54px;border:1px solid var(--bd);border-radius:6px;padding:3px 5px;font-size:13px;font-weight:500;text-align:center;background:var(--bg)" inputmode="decimal">';
         h+='<button onclick="NPT.recItems['+riIdx+'].q=+(NPT.recItems['+riIdx+'].q+0.5).toFixed(2);renderCreatePT()" style="width:28px;height:28px;border:none;border-radius:50%;background:var(--bd);color:var(--t1);cursor:pointer;font-size:14px">+</button>';
+        h+='<button onclick="openEditItemModal(\''+ri.t+'\',\''+riId+'\')" style="width:28px;height:28px;border:none;border-radius:50%;background:none;color:var(--t2);cursor:pointer;font-size:15px;padding:0">✏️</button>';
         h+='<button onclick="NPT.recItems.splice('+riIdx+',1);renderCreatePT()" style="width:28px;height:28px;border:none;border-radius:50%;background:none;color:var(--t3);cursor:pointer;font-size:16px">×</button>';
         h+='</div></div>';
       }
@@ -4394,7 +4395,9 @@ function renderCreatePT(){
       h+='</div>';
     }
     h+=fg('Precio de catálogo ($)','<input class="fi" type="number" id="pt-v2" value="'+esc(NPT.v)+'" oninput="NPT.v=this.value;updPtMgFromRec()" placeholder="ej: '+sugerido+'" inputmode="decimal">');
-    h+='<div id="pt-mg2" style="font-size:13px;color:var(--t2);margin-top:-8px;margin-bottom:14px">'+mgTxt(mg2)+'</div>';
+    h+='<div id="pt-mg2" style="font-size:13px;color:var(--t2);margin-top:-8px;margin-bottom:4px">'+mgTxt(mg2)+'</div>';
+    if(sugerido>0)h+='<div style="font-size:12px;color:var(--t3);margin-bottom:14px">Precio sugerido para un margen bruto del 40%: <b style="color:var(--br)">'+fmt(sugerido)+'</b></div>';
+    else h+='<div style="height:14px;margin-bottom:14px"></div>';
     h+='<button class="btn bp" onclick="savePT()">✓ Crear producto</button>';
   }
   h+='</div>';setC(h);
@@ -4425,7 +4428,7 @@ function savePT(){
 function renderRegistrarCompra(){
   setH('Registrar compra','Actualiza precios automáticamente','catalogo','Catálogo','');
   if(!NCO.f)NCO.f=toStr();
-  var pvOpts=(D.pvs||[]).map(function(v){return '<option value="'+v.id+'"'+(v.id===NCO.pv?' selected':'')+'>'+esc(v.n)+'</option>';}).join('');
+  var pvOpts=(D.pvs||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(v){return '<option value="'+v.id+'"'+(v.id===NCO.pv?' selected':'')+'>'+esc(v.n)+'</option>';}).join('');
   var h='<div class="p">'+alrt('i','Ingresá total gastado y cantidad comprada. El precio unitario se calcula solo.');
   h+='<div style="display:flex;gap:8px;margin-bottom:16px">';
   h+='<div class="ro'+(NCO.type==='MP'?' on':'')+'" onclick="NCO.type=\'MP\';NCO.items=[];NCO.showAdd=false;renderRegistrarCompra()">🌿 Ingredientes</div>';
