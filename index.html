@@ -373,6 +373,9 @@ function pct(a,b){return b?Math.round(a/b*100):0;}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
 function toStr(){return new Date().toISOString().split('T')[0];}
 function fmtD(d){if(!d)return'';var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+function pad2(n,len){return String(n==null?0:n).padStart(len,'0');}
+function nextSeq(key){D[key]=(D[key]||0)+1;return D[key];}
+function fmtRem(n){n=n||0;return '$ '+n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtS(d){if(!d)return'';var p=d.split('-');return p[2]+'/'+p[1];}
 function curPer(){return new Date().toISOString().slice(0,7);}
 function prevPer(){var d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);}
@@ -715,7 +718,7 @@ function deselCli(){
   var res=$('no-cli-results');if(res)res.innerHTML='';
   var nxtBtn=$('no-next-btn');if(nxtBtn)nxtBtn.setAttribute('disabled','');
 }
-function freshNO(){return{step:1,cliId:'',fecha:toStr(),items:[],svId:'s1',ce:0,pe:0,cat:'',_ptSr:'',_cliSr:''};}
+function freshNO(){return{step:1,cliId:'',fecha:toStr(),items:[],svId:'s1',ce:0,pe:0,cat:'',_ptSr:'',_cliSr:'',obs:''};}
 
 function go(s,p){
   // Push current screen to history before navigating
@@ -1397,12 +1400,18 @@ function renderPedDet(){
   h+='<button class="btn bp" onclick="genRemitoFromDet(SP.id)" style="width:100%;margin-bottom:8px">🖨️ Generar Remito PDF</button>';
   var remitos=(D.remitos||[]).filter(function(r){return r.pid===SP.id;}).sort(function(a,b){return b.f.localeCompare(a.f);});
   if(remitos.length){
+    var _numChanged=false;
+    if(cl&&!cl.num){cl.num=nextSeq('cliSeq');_numChanged=true;}
+    var _remsAsc=remitos.slice().reverse();
+    for(var ai=0;ai<_remsAsc.length;ai++){if(!_remsAsc[ai].num){_remsAsc[ai].num=nextSeq('remSeq');_numChanged=true;}}
+    if(_numChanged)saveD();
     h+='<div class="bx" style="padding:4px 14px">';
     for(var i=0;i<remitos.length;i++){
       var rm=remitos[i];
+      var remLbl='RE-'+pad2(cl?cl.num:0,3)+'-'+pad2(rm.num,4);
       h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:'+(i<remitos.length-1?'1px solid var(--bd2)':'none')+'">';
-      h+='<div style="font-size:13px;color:var(--t2)">Emitido el '+fmtD(rm.f)+'</div>';
-      h+='<button onclick="genRemito(\''+SP.id+'\')" style="font-size:12px;padding:4px 10px;border:1px solid var(--bd);border-radius:6px;background:none;cursor:pointer;color:var(--t2)">Reimprimir</button>';
+      h+='<div style="font-size:13px;color:var(--t2)">'+esc(remLbl)+' · Emitido el '+fmtD(rm.f)+'</div>';
+      h+='<button onclick="genRemito(\''+SP.id+'\',\''+rm.id+'\')" style="font-size:12px;padding:4px 10px;border:1px solid var(--bd);border-radius:6px;background:none;cursor:pointer;color:var(--t2)">Reimprimir</button>';
       h+='</div>';
     }
     h+='</div>';
@@ -1413,15 +1422,23 @@ function renderPedDet(){
   setC(h);
 }
 function genRemitoFromDet(pedId){
-  (D.remitos=D.remitos||[]).push({id:uid(),pid:pedId,f:toStr()});
+  var ped=D.ped.find(function(p){return p.id===pedId;});
+  var cl=ped?D.cli.find(function(c){return c.id===ped.cl;}):null;
+  if(cl&&!cl.num)cl.num=nextSeq('cliSeq');
+  var entry={id:uid(),pid:pedId,f:toStr(),num:nextSeq('remSeq')};
+  (D.remitos=D.remitos||[]).push(entry);
   saveD();
-  genRemito(pedId);
+  genRemito(pedId,entry.id);
   renderPedDet();
 }
 function genRemitoInline(pedId){
-  (D.remitos=D.remitos||[]).push({id:uid(),pid:pedId,f:toStr()});
+  var ped=D.ped.find(function(p){return p.id===pedId;});
+  var cl=ped?D.cli.find(function(c){return c.id===ped.cl;}):null;
+  if(cl&&!cl.num)cl.num=nextSeq('cliSeq');
+  var entry={id:uid(),pid:pedId,f:toStr(),num:nextSeq('remSeq')};
+  (D.remitos=D.remitos||[]).push(entry);
   saveD();
-  genRemito(pedId);
+  genRemito(pedId,entry.id);
   renderPedidos();
 }
 function showCobForm(){
@@ -1661,6 +1678,7 @@ function renderNO(){
     h+='<div class="st2"><span>Total del pedido</span><span>'+fmt(tot)+'</span></div>';
     h+='<div class="sm"><span>↑ Ganancia bruta</span><span>'+fmt(gan)+' ('+mg+'%)</span></div>';
     if(sub2){h+=alrt('w','Subsidio de envío: '+fmt(sub2));}
+    h+=fg('Observaciones (opcional)','<textarea class="fi" id="no-obs" rows="2" placeholder="Ej: entregar antes de las 12hs, tocar timbre 2°B..." style="height:auto;resize:none" onchange="NO.obs=this.value">'+esc(o.obs||'')+'</textarea>');
     h+='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn bs2" style="flex:1" onclick="NO.step=3;renderNO()">← Atrás</button><button class="btn bp" style="flex:2" onclick="confirmOrd()">Confirmar y generar remito</button></div>';
   }
 
@@ -1691,7 +1709,8 @@ function saveNoSv(){
 }
 function confirmOrd(){
   var id=uid(),cl=D.cli.find(function(c){return c.id===NO.cliId;});
-  D.ped.unshift({id:id,cl:NO.cliId,f:NO.fecha,ce:NO.ce||0,pe:NO.pe||0,sv:NO.svId});
+  if(cl&&!cl.num)cl.num=nextSeq('cliSeq');
+  D.ped.unshift({id:id,cl:NO.cliId,f:NO.fecha,ce:NO.ce||0,pe:NO.pe||0,sv:NO.svId,num:nextSeq('pedSeq'),obs:(NO.obs||'').trim()});
   for(var i=0;i<NO.items.length;i++){var it=NO.items[i];D.pi.push({id:uid(),d:id,pt:it.pt,q:it.q,v:it.v});}
   saveD();
   var tot=NO.items.reduce(function(s,i){return s+i.v*i.q;},0)+(NO.pe||0);
@@ -1713,90 +1732,728 @@ function confirmOrd(){
     +'</div></div>');
   NO=freshNO();
 }
-function genRemito(pedId){
+var REMITO_CSS=`
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:            #E11D48;
+    --primary-light:      #fef1f4;
+    --primary-mid:        #f9c0cd;
+    --color-ink:          #1a1a1a;
+    --color-ink-mid:      #555555;
+    --color-ink-light:    #888888;
+    --color-border:       #e0e0e0;
+    --color-border-dark:  #b0b0b0;
+    --color-bg-alt:       #f7f6f4;
+    --color-badge-paid-bg:   #e6f4ec;
+    --color-badge-paid-fg:   #1d7a45;
+    --color-badge-pend-bg:   #fff4e5;
+    --color-badge-pend-fg:   #a05c00;
+  }
+
+  /* ─── SCREEN WRAPPER ─────────────────────────────────── */
+  html, body {
+    font-family: 'DM Sans', sans-serif;
+    background: #e8e6e2;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 32px 16px;
+    color: var(--color-ink);
+  }
+
+  /* ─── A4 LANDSCAPE SHEET ─────────────────────────────── */
+  /*
+     A4 landscape @ 96 dpi = 1122 × 794 px
+     Usamos 1100px para dejar margen en pantalla
+  */
+  .sheet {
+    width: 100%;
+    background: #fff;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── COPY LABEL BANNER ──────────────────────────────── */
+  .copy-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 3px 28px;
+    background: var(--primary);
+  }
+
+  .copy-banner-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.35);
+  }
+
+  .copy-banner-text {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fff;
+    white-space: nowrap;
+  }
+
+  /* ─── DIVIDER BETWEEN COPIES ─────────────────────────── */
+  .cut-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 28px;
+    background: #f0eeea;
+    border-top: 1px dashed #bbb;
+    border-bottom: 1px dashed #bbb;
+  }
+  .cut-line-icon {
+    font-size: 11px;
+    color: #aaa;
+  }
+  .cut-line-text {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #bbb;
+    font-weight: 500;
+  }
+
+  /* ─── REMITO COPY ────────────────────────────────────── */
+  .remito {
+    padding: 12px 22px 14px;
+  }
+
+  /* ─── HEADER ─────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--primary);
+  }
+
+  .brand-name {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1;
+    color: var(--color-ink);
+  }
+  .brand-name .gu {
+    color: var(--primary);
+  }
+
+  .brand-sub {
+    font-size: 10px;
+    color: var(--color-ink-light);
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+
+  .doc-meta {
+    text-align: right;
+  }
+
+  .doc-type {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--color-ink-light);
+  }
+
+  .doc-number {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    color: var(--primary);
+    margin-top: 1px;
+  }
+
+  .legal-note {
+    font-size: 9px;
+    color: var(--color-ink-light);
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  /* ─── META ROW ───────────────────────────────────────── */
+  .meta-row {
+    display: flex;
+    gap: 0;
+    margin-top: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .meta-cell {
+    flex: 1;
+    padding: 7px 10px;
+    border-right: 1px solid var(--color-border);
+  }
+  .meta-cell:last-child { border-right: none; }
+
+  .meta-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--color-ink-light);
+    margin-bottom: 2px;
+  }
+
+  .meta-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .badge-paid    { background: var(--color-badge-paid-bg); color: var(--color-badge-paid-fg); }
+  .badge-pending { background: var(--color-badge-pend-bg); color: var(--color-badge-pend-fg); }
+
+  /* ─── BODY GRID: fila superior 3col + tabla abajo ─────── */
+  .body-grid {
+    display: flex;
+    flex-direction: column;
+    margin-top: 14px;
+  }
+
+  /* Fila superior: cliente | chips | observaciones */
+  .info-row {
+    display: table;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 14px 0;
+    margin-bottom: 10px;
+    margin-left: -14px; /* compensar border-spacing lateral */
+    box-sizing: border-box;
+  }
+
+  .info-row > * {
+    display: table-cell;
+    vertical-align: top;
+    width: 33.33%;
+  }
+
+  /* Chips apilados dentro de su columna */
+  .chips-col {
+    display: table-cell;
+    vertical-align: top;
+  }
+  .chips-col .info-chip {
+    display: block;
+    margin-bottom: 6px;
+  }
+  .chips-col .info-chip:last-child {
+    margin-bottom: 0;
+  }
+
+  .info-box {
+    background: var(--color-bg-alt);
+    border-radius: 5px;
+    padding: 5px 8px;
+  }
+
+  .info-box-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 5px;
+  }
+
+  .info-box-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-ink);
+    line-height: 1.2;
+  }
+
+  .info-box-detail {
+    font-size: 11px;
+    color: var(--color-ink-mid);
+    margin-top: 3px;
+    line-height: 1.6;
+  }
+
+  .info-chip {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    background: var(--color-bg-alt);
+    border-radius: 5px;
+    padding: 4px 8px;
+  }
+
+  .chip-icon {
+    font-size: 13px;
+    line-height: 1.3;
+    flex-shrink: 0;
+  }
+
+  .chip-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--primary);
+  }
+  .chip-value {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-ink);
+    margin-top: 1px;
+  }
+
+  .obs-box {
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    padding: 4px 8px;
+  }
+  .obs-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 3px;
+  }
+  .obs-text {
+    font-size: 10px;
+    color: var(--color-ink-mid);
+    line-height: 1.5;
+  }
+
+  /* ─── RIGHT COLUMN ───────────────────────────────────── */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .section-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 5px;
+  }
+
+  /* ─── ITEMS TABLE ────────────────────────────────────── */
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .items-table thead tr {
+    border-top: 1.5px solid var(--primary);
+    border-bottom: 1px solid var(--color-border-dark);
+  }
+
+  .items-table th {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--color-ink-mid);
+    padding: 4px 0;
+    text-align: left;
+  }
+
+  .items-table th.right,
+  .items-table td.right { text-align: right; }
+  .items-table th.center,
+  .items-table td.center { text-align: center; }
+
+  .items-table tbody tr {
+    border-bottom: 1px solid var(--color-border);
+  }
+  .items-table tbody tr:last-child {
+    border-bottom: 1px solid var(--color-border-dark);
+  }
+
+  .items-table td {
+    padding: 5px 0;
+    font-size: 10px;
+    color: var(--color-ink);
+    vertical-align: middle;
+  }
+
+  .product-name { font-weight: 500; }
+
+  .price-list-tag {
+    display: inline-block;
+    background: var(--primary-light);
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--primary);
+    padding: 1px 6px;
+    margin-left: 5px;
+    vertical-align: middle;
+    letter-spacing: 0.2px;
+  }
+
+  /* ─── TOTALS + SIGNATURE ─────────────────────────────── */
+  .bottom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 4px;
+    gap: 12px;
+  }
+
+  .signature-area {
+    display: flex;
+    gap: 28px;
+    flex: 1;
+    align-items: flex-end;
+  }
+
+  .sig-block {
+    flex: 1;
+    border-top: 2px solid var(--color-ink);
+    padding-top: 6px;
+    margin-top: 24px;
+  }
+
+  .sig-label {
+    font-size: 9.5px;
+    color: var(--color-ink-mid);
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .totals-box {
+    width: 230px;
+    flex-shrink: 0;
+  }
+
+  .totals-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 9.5px;
+    color: var(--color-ink-mid);
+  }
+  .totals-row:last-child { border-bottom: none; }
+
+  .totals-row.total-final {
+    padding-top: 7px;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--primary);
+    border-top: 1.5px solid var(--primary);
+    margin-top: 2px;
+  }
+
+  .totals-row span:last-child {
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  .totals-row.total-final span:last-child {
+    font-size: 16px;
+    color: var(--primary);
+  }
+
+  /* ─── FOOTER ─────────────────────────────────────────── */
+  .footer {
+    margin-top: 16px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  /* Fuente: perfil del emprendedor (nombre, email, teléfono, instagram, localidad) */
+  .footer-contact {
+    font-size: 10px;
+    color: var(--color-ink-light);
+    line-height: 1.7;
+  }
+
+  .footer-contact strong {
+    font-weight: 700;
+    color: var(--color-ink-mid);
+  }
+
+  .footer-legal {
+    font-size: 9px;
+    color: var(--color-ink-light);
+    text-align: right;
+    line-height: 1.5;
+    font-style: italic;
+    max-width: 280px;
+  }
+
+  /* ─── PRINT ──────────────────────────────────────────── */
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    html, body {
+      background: white;
+      padding: 0;
+      display: block;
+    }
+    .sheet {
+      width: 100%;
+      box-shadow: none;
+    }
+  }
+
+
+  html, body { background: #e8e6e2; margin: 0; padding: 32px 16px; }
+  .a4-page {
+    width: 1122px; min-height: 794px; background: #fff;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+    padding: 14px; box-sizing: border-box; margin: 0 auto; overflow: hidden;
+  }
+  .copy-column { display: inline-block; width: 536px; vertical-align: top; overflow: hidden; }
+  .copy-column .sheet { width: 536px !important; box-sizing: border-box; box-shadow: none; }
+  .cut-line-v { display: inline-block; width: 14px; vertical-align: top; border-left: 1px dashed #bbb; margin: 0 1px; }
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    html, body { background: white; padding: 0; margin: 0; }
+    .a4-page { width: 100%; height: 100vh; box-shadow: none; padding: 10px; }
+    .copy-column { width: calc(50% - 9px) !important; }
+    .copy-column .sheet { width: calc(50% - 9px) !important; }
+    .cut-line-v { height: calc(100vh - 20px); }
+  }
+
+`;
+function remitoCopyHtml(v){
+  var COPY_LABEL=v.COPY_LABEL,BRAND_NAME=v.BRAND_NAME,BRAND_SUB=v.BRAND_SUB,REMITO_NUM=v.REMITO_NUM,
+      FECHA_EMISION=v.FECHA_EMISION,PEDIDO_NUM=v.PEDIDO_NUM,CLI_NOMBRE=v.CLI_NOMBRE,CLI_DIRLOC=v.CLI_DIRLOC,
+      CLI_TEL=v.CLI_TEL,TIPO_ENTREGA=v.TIPO_ENTREGA,OBSERVACIONES=v.OBSERVACIONES,ITEM_ROWS=v.ITEM_ROWS,
+      SUBTOTAL=v.SUBTOTAL,ENVIO=v.ENVIO,TOTAL=v.TOTAL,FOOTER_EXTRAS=v.FOOTER_EXTRAS;
+  return `  <div class="copy-banner">
+    <div class="copy-banner-line"></div>
+    <div class="copy-banner-text">${COPY_LABEL}</div>
+    <div class="copy-banner-line"></div>
+  </div>
+
+  <div class="remito">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div>
+        <!-- Fuente: perfil.nombre_negocio -->
+        <div class="brand-name">${BRAND_NAME}</div>
+        <!-- Fuente: perfil.localidad -->
+        <div class="brand-sub">${BRAND_SUB}</div>
+      </div>
+      <div class="doc-meta">
+        <div class="doc-type">Remito</div>
+        <!-- Fuente: autoincremental por usuario → pedido.numero_remito -->
+        <div class="doc-number">${REMITO_NUM}</div>
+        <div class="legal-note">No válido como factura</div>
+      </div>
+    </header>
+
+    <!-- META ROW -->
+    <div class="meta-row">
+      <div class="meta-cell">
+        <div class="meta-label">Fecha de emisión</div>
+        <!-- Fuente: pedido.fecha_creacion -->
+        <div class="meta-value">${FECHA_EMISION}</div>
+      </div>
+      <div class="meta-cell">
+        <div class="meta-label">N.° de pedido</div>
+        <!-- Fuente: pedido.id o pedido.numero_pedido -->
+        <div class="meta-value">${PEDIDO_NUM}</div>
+      </div>
+    </div>
+
+    <!-- BODY GRID -->
+    <div class="body-grid">
+
+      <!-- FILA SUPERIOR: 3 columnas — cliente | pago+entrega | observaciones -->
+      <div class="info-row">
+
+        <div class="info-box">
+          <div class="info-box-label">Cliente</div>
+          <!-- Fuente: D.cli.nombre -->
+          <div class="info-box-name">${CLI_NOMBRE}</div>
+          <div class="info-box-detail">
+            <!-- Fuente: D.cli.direccion, D.cli.localidad -->
+            ${CLI_DIRLOC}
+            <!-- Fuente: D.cli.telefono (omitir si vacío) -->
+            ${CLI_TEL}
+          </div>
+        </div>
+
+        <div class="chips-col">
+          <div class="info-chip">
+            <div class="chip-icon">📦</div>
+            <div>
+              <div class="chip-label">Entrega</div>
+              <!-- Fuente: pedido.modalidad_entrega -->
+              <div class="chip-value">${TIPO_ENTREGA}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="obs-box">
+          <div class="obs-label">Observaciones</div>
+          <!-- Fuente: pedido.observaciones -->
+          <div class="obs-text">${OBSERVACIONES}</div>
+        </div>
+
+      </div>
+
+      <!-- FILA INFERIOR: tabla a ancho completo -->
+      <div class="right-col">
+
+        <div class="section-label">Detalle de productos</div>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th class="center" style="width:44px">Cant.</th>
+              <th>Producto</th>
+              <th class="right" style="width:96px">Precio unit.</th>
+              <th class="right" style="width:104px">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Fuente: D.ped.items -->
+            ${ITEM_ROWS}
+          </tbody>
+        </table>
+
+        <div class="bottom-row">
+          <div class="signature-area">
+            <div class="sig-block"><div class="sig-label">Firma, aclaración y fecha — Cliente</div></div>
+            <div class="sig-block"><div class="sig-label">Firma y aclaración — Vendedor</div></div>
+          </div>
+          <div class="totals-box">
+            <!-- Fuente: calculado desde D.ped.items -->
+            <div class="totals-row"><span>Subtotal mercadería</span><span>${SUBTOTAL}</span></div>
+            <!-- Fuente: pedido.pe (cobrado al cliente) -->
+            <div class="totals-row"><span>Costo de envío</span><span>${ENVIO}</span></div>
+            <div class="totals-row total-final"><span>Total</span><span>${TOTAL}</span></div>
+          </div>
+        </div>
+
+        <!-- FOOTER dentro del right-col para alinearlo con la tabla -->
+        <footer class="footer">
+          <!-- Fuente: perfil del emprendedor (una sola aparición en el documento) -->
+          <div class="footer-contact">
+            <strong>${BRAND_NAME}</strong>${FOOTER_EXTRAS}
+          </div>
+          <div class="footer-legal">
+            Remito de entrega · No válido como comprobante fiscal.<br>
+            *Controlar el pedido al recibirlo. No se aceptan devoluciones una vez entregados los productos.
+          </div>
+        </footer>
+
+      </div><!-- /right-col -->
+    </div><!-- /body-grid -->
+
+  </div><!-- /remito -->
+`;
+}
+function genRemito(pedId,remId){
   var ped=D.ped.find(function(p){return p.id===pedId;});
   if(!ped){alert('Pedido no encontrado');return;}
-  var cl=D.cli.find(function(c){return c.id===ped.cl;})||{n:'—',dir:'',tel:'',cuit:'',loc:'',cp:'',mail:''};
+  var cl=D.cli.find(function(c){return c.id===ped.cl;})||{n:'—',dir:'',tel:'',loc:''};
   var items=D.pi.filter(function(i){return i.d===pedId;});
-  var tot=items.reduce(function(s,i){return s+i.v*i.q;},0)+(ped.pe||0);
+  var e=D.empresa||{},per=D.persona||{};
+  var changed=false;
 
-  // Try jsPDF, fall back to print window
-  var jsPDF=(window.jspdf&&window.jspdf.jsPDF)||(window.jsPDF)||null;
-  if(jsPDF){
-    try{
-      var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-      var W=210,M=18,cW=W-M*2;
-      doc.setFillColor(200,24,79);doc.rect(0,0,W,28,'F');
-      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(20);
-      doc.text('REMITO',M,17);
-      doc.setFontSize(10);doc.setFont('helvetica','normal');
-      doc.text('GULA',W-M,17,{align:'right'});
-      doc.setTextColor(60,60,60);doc.setFontSize(9);
-      doc.text('Fecha: '+fmtD(ped.f),M,36);
-      doc.text('Nº: '+pedId.slice(-6).toUpperCase(),W-M,36,{align:'right'});
-      doc.setDrawColor(220,220,220);doc.setFillColor(249,249,249);
-      doc.roundedRect(M,40,cW,22,2,2,'FD');
-      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(140,140,140);
-      doc.text('CLIENTE',M+4,47);
-      doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(30,30,30);
-      doc.text(cl.n,M+4,54);
-      if(cl.dir){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);doc.text(cl.dir,M+4,60);}
-      var ty=70;
-      doc.setFillColor(245,245,245);doc.rect(M,ty,cW,7,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(80,80,80);
-      doc.text('PRODUCTO',M+3,ty+5);doc.text('CANT.',M+cW*0.6,ty+5);
-      doc.text('P.UNIT.',M+cW*0.74,ty+5);doc.text('SUBTOTAL',M+cW,ty+5,{align:'right'});
-      ty+=7;
-      for(var i=0;i<items.length;i++){
-        var it=items[i],pt=D.pt.find(function(p){return p.id===it.pt;})||{n:'?'};
-        doc.setFillColor(i%2===0?255:251,i%2===0?255:251,i%2===0?255:251);
-        doc.rect(M,ty,cW,8,'F');
-        doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(30,30,30);
-        doc.text(pt.n.substring(0,36),M+3,ty+5.5);
-        doc.text(String(it.q),M+cW*0.6,ty+5.5);
-        doc.text(fmtK(it.v),M+cW*0.74,ty+5.5);
-        doc.text(fmtK(it.v*it.q),M+cW,ty+5.5,{align:'right'});
-        ty+=8;if(ty>260){doc.addPage();ty=20;}
-      }
-      if(ped.pe){
-        doc.setFillColor(252,252,252);doc.rect(M,ty,cW,8,'F');
-        doc.setTextColor(80,80,80);doc.text('Envío',M+3,ty+5.5);
-        doc.text(fmtK(ped.pe),M+cW,ty+5.5,{align:'right'});ty+=8;
-      }
-      ty+=2;doc.setFillColor(200,24,79);doc.rect(M,ty,cW,10,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(255,255,255);
-      doc.text('TOTAL',M+4,ty+7);doc.text(fmtK(tot),M+cW-2,ty+7,{align:'right'});
-      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(160,160,160);
-      doc.text('Generado por Gula • '+fmtD(toStr()),W/2,285,{align:'center'});
-      doc.save('remito-'+cl.n.replace(/\s/g,'-').toLowerCase()+'-'+pedId.slice(-4)+'.pdf');
-      return;
-    }catch(e){console.warn('jsPDF error:',e);}
-  }
+  // Numeración real: se asigna una sola vez y persiste (pedidos/clientes/remitos anteriores a esta función se numeran la primera vez que se los usa)
+  if(!ped.num){ped.num=nextSeq('pedSeq');changed=true;}
+  if(cl.id&&!cl.num){cl.num=nextSeq('cliSeq');changed=true;}
 
-  // Fallback: open print window
-  var rows='';
-  for(var i=0;i<items.length;i++){
-    var it=items[i],pt=D.pt.find(function(p){return p.id===it.pt;})||{n:'?'};
-    rows+='<tr><td>'+esc(pt.n)+'</td><td style="text-align:center">'+it.q+'</td><td style="text-align:right">'+fmt(it.v)+'</td><td style="text-align:right">'+fmt(it.v*it.q)+'</td></tr>';
+  var remEntry=null;
+  if(remId)remEntry=(D.remitos||[]).find(function(r){return r.id===remId;});
+  if(!remEntry){
+    var rems=(D.remitos||[]).filter(function(r){return r.pid===pedId;}).sort(function(a,b){return b.f.localeCompare(a.f);});
+    remEntry=rems[0];
   }
-  if(ped.pe){rows+='<tr style="color:#666"><td>Envío</td><td></td><td></td><td style="text-align:right">'+fmt(ped.pe)+'</td></tr>';}
-  var win=window.open('','_blank','width=700,height=900');
-  if(!win){alert('Permití las ventanas emergentes para descargar el remito.');return;}
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Remito - '+cl.n+'</title>'
-    +'<style>body{font-family:Arial,sans-serif;margin:40px;color:#222}h1{color:#c8184f;margin-bottom:4px}.meta{color:#888;font-size:13px;margin-bottom:24px}.cli-box{background:#f9f9f9;border:1px solid #ddd;border-radius:8px;padding:14px 18px;margin-bottom:24px}.cli-name{font-size:18px;font-weight:700}.cli-sub{color:#888;font-size:13px;margin-top:2px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#f5f5f5;padding:8px 10px;text-align:left;font-size:12px;color:#888;text-transform:uppercase}td{padding:9px 10px;border-bottom:1px solid #eee;font-size:14px}.total-row{background:#c8184f;color:#fff;font-weight:700;font-size:15px}.total-row td{border:none;padding:11px 10px}@media print{body{margin:20px}button{display:none}}</style>'
-    +'</head><body>'
-    +'<h1>REMITO</h1><div class="meta">Fecha: '+fmtD(ped.f)+' &nbsp;&nbsp; Nº: '+pedId.slice(-6).toUpperCase()+'</div>'
-    +'<div class="cli-box"><div class="cli-name">'+esc(cl.n)+'</div>'
-    +(cl.cuit?'<div class="cli-sub">CUIT: '+esc(cl.cuit)+'</div>':'')
-    +(cl.dir?'<div class="cli-sub">'+esc(cl.dir)+(cl.loc?' · '+esc(cl.loc):'')+(cl.cp?' ('+esc(cl.cp)+')':'')+'</div>':'')
-    +(cl.tel?'<div class="cli-sub">Tel: '+esc(cl.tel)+'</div>':'')
-    +(cl.mail?'<div class="cli-sub">'+esc(cl.mail)+'</div>':'')
-    +'</div>'
-    +'<table><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>'+rows+'</tbody>'
-    +'<tfoot><tr class="total-row"><td colspan="3">TOTAL</td><td style="text-align:right">'+fmt(tot)+'</td></tr></tfoot></table>'
-    +'<p style="color:#aaa;font-size:11px;text-align:center;margin-top:32px">Generado por Gula • '+fmtD(toStr())+'</p>'
-    +'<p style="text-align:center"><button onclick="window.print()" style="background:#c8184f;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:15px;cursor:pointer">🖨️ Imprimir / Guardar PDF</button></p>'
-    +'</body></html>');
+  if(!remEntry){
+    remEntry={id:uid(),pid:pedId,f:toStr()};
+    (D.remitos=D.remitos||[]).push(remEntry);
+    changed=true;
+  }
+  if(!remEntry.num){remEntry.num=nextSeq('remSeq');changed=true;}
+  if(changed)saveD();
+
+  var sv=D.svs.find(function(s){return s.id===ped.sv;});
+  var subtotal=items.reduce(function(s,i){return s+i.v*i.q;},0);
+  var envio=ped.pe||0;
+  var total=subtotal+envio;
+
+  var brandName=e.nombre||D.neg.nombre||'—';
+  var brandSub=[e.localidad,e.provincia].filter(Boolean).join(', ')||'Argentina';
+  var email=e.email||per.email||'';
+  var tel=e.tel||per.tel||'';
+  var ig=e.ig?('@'+e.ig.replace(/^@/,'')):'';
+  var footerBits=[email,tel,ig,brandSub].filter(Boolean).map(esc);
+  var footerExtras=footerBits.length?(' &nbsp;·&nbsp; '+footerBits.join(' &nbsp;·&nbsp; ')):'';
+
+  var remitoNumStr='RE-'+pad2(cl.num||0,3)+'-'+pad2(remEntry.num,4);
+  var pedidoAnio=(ped.f||toStr()).split('-')[0];
+  var pedidoNumStr='#'+pedidoAnio+'-'+pad2(ped.num,3);
+
+  var cliDirLoc=[cl.dir,cl.loc].filter(Boolean).join(', ');
+  var cliDirLocHtml=cliDirLoc?(esc(cliDirLoc)+'<br>'):'';
+  var cliTelHtml=cl.tel?(esc(cl.tel)+'<br>'):'';
+
+  var itemRows=items.map(function(it){
+    var pt=D.pt.find(function(p){return p.id===it.pt;})||{n:'?'};
+    var cat=D.cpt.find(function(c){return c.id===pt.c;});
+    var tag=cat?('<span class="price-list-tag">'+esc(cat.n)+'</span>'):'';
+    return '<tr><td class="center">'+it.q+'</td><td><span class="product-name">'+esc(pt.n)+'</span>'+tag+'</td><td class="right">'+fmtRem(it.v)+'</td><td class="right">'+fmtRem(it.v*it.q)+'</td></tr>';
+  }).join('');
+
+  var vars={
+    BRAND_NAME:esc(brandName),BRAND_SUB:esc(brandSub),REMITO_NUM:remitoNumStr,
+    FECHA_EMISION:fmtD(ped.f),PEDIDO_NUM:pedidoNumStr,CLI_NOMBRE:esc(cl.n||'—'),
+    CLI_DIRLOC:cliDirLocHtml,CLI_TEL:cliTelHtml,TIPO_ENTREGA:esc(sv?sv.n:'—'),
+    OBSERVACIONES:esc((ped.obs||'').trim()||'Sin observaciones.'),ITEM_ROWS:itemRows,
+    SUBTOTAL:fmtRem(subtotal),ENVIO:fmtRem(envio),TOTAL:fmtRem(total),FOOTER_EXTRAS:footerExtras
+  };
+  vars.COPY_LABEL='Copia para el vendedor';
+  var copyVendedor=remitoCopyHtml(vars);
+  vars.COPY_LABEL='Copia para el comprador';
+  var copyComprador=remitoCopyHtml(vars);
+
+  var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Remito - '+esc(cl.n||'')+'</title><style>'+REMITO_CSS+'</style>'
+    +'<style>.no-print{position:fixed;top:14px;right:14px;z-index:999}@media print{.no-print{display:none}}</style></head><body>'
+    +'<div class="no-print"><button onclick="window.print()" style="background:#E11D48;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.2)">🖨️ Imprimir / Guardar PDF</button></div>'
+    +'<div class="a4-page"><div class="copy-column"><div class="sheet">'
+    +copyVendedor
+    +'</div></div><div class="cut-line-v"></div><div class="copy-column"><div class="sheet">'
+    +copyComprador
+    +'</div></div></div>'
+    +'</body></html>';
+
+  var win=window.open('','_blank');
+  if(!win){alert('Permití las ventanas emergentes para generar el remito.');return;}
+  win.document.write(html);
   win.document.close();
 }
 
@@ -3191,7 +3848,7 @@ function renderCreateCliente(){
 function saveCli(){
   var n=($('cln')&&$('cln').value||'').trim();
   if(!n){alert('El nombre es obligatorio');return;}
-  var obj={id:uid(),n:n,may:newCliMay,
+  var obj={id:uid(),n:n,may:newCliMay,num:nextSeq('cliSeq'),
     tel:($('clt')&&$('clt').value||''),
     mail:($('clm')&&$('clm').value||''),
     cuit:($('clcuit')&&$('clcuit').value||''),
@@ -4105,6 +4762,10 @@ function renderConfig(){
   h+=fg('Código Postal','<input class="fi" id="cfg-ecp" value="'+esc(e.cp||'')+'" placeholder="1425">');
   h+='</div>';
   h+=fg('Dirección','<input class="fi" id="cfg-edir" value="'+esc(e.dir||'')+'" placeholder="ej: Av. Santa Fe 1234">');
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h+=fg('Email','<input class="fi" type="email" id="cfg-eemail" value="'+esc(e.email||'')+'" placeholder="contacto@negocio.com">');
+  h+=fg('Teléfono','<input class="fi" type="tel" id="cfg-etel" value="'+esc(e.tel||'')+'" placeholder="11 1234-5678">');
+  h+='</div>';
   h+=fg('Sitio web','<input class="fi" type="url" id="cfg-eweb" value="'+esc(e.web||'')+'" placeholder="https://...">');
   h+='<div class="sc" style="margin-top:4px;margin-bottom:8px">Redes sociales</div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
@@ -4190,6 +4851,8 @@ function saveEmpresa(){
   e.localidad=($('cfg-elocalidad')&&$('cfg-elocalidad').value||'').trim();
   e.cp=($('cfg-ecp')&&$('cfg-ecp').value||'').trim();
   e.dir=($('cfg-edir')&&$('cfg-edir').value||'').trim();
+  e.email=($('cfg-eemail')&&$('cfg-eemail').value||'').trim();
+  e.tel=($('cfg-etel')&&$('cfg-etel').value||'').trim();
   e.web=($('cfg-eweb')&&$('cfg-eweb').value||'').trim();
   e.ig=($('cfg-eig')&&$('cfg-eig').value||'').trim();
   e.fb=($('cfg-efb')&&$('cfg-efb').value||'').trim();
@@ -5121,7 +5784,7 @@ function saveCliFromModal(){
   if(!n){showToast('❌ El nombre es obligatorio');return;}
   var tel=(document.getElementById('cli-modal-tel')&&document.getElementById('cli-modal-tel').value||'');
   var id=uid();
-  D.cli.push({id:id,n:n,may:_cliModalMay,tel:tel});
+  D.cli.push({id:id,n:n,may:_cliModalMay,num:nextSeq('cliSeq'),tel:tel});
   saveD();
   var fn=_cliModalCb;_cliModalCb=null;
   if(fn)fn(id);
