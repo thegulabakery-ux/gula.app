@@ -1397,48 +1397,34 @@ function renderPedDet(){
   if(sal>0){h+='<div id="csec"><button class="btn bp" onclick="showCobForm()">💳 Registrar cobro · '+fmt(sal)+' pendiente</button></div>';}
   // Remito section
   h+='<div class="sc">Remito</div>';
-  h+='<button class="btn bp" onclick="genRemitoFromDet(SP.id)" style="width:100%;margin-bottom:8px">🖨️ Generar Remito PDF</button>';
-  var remitos=(D.remitos||[]).filter(function(r){return r.pid===SP.id;}).sort(function(a,b){return b.f.localeCompare(a.f);});
-  if(remitos.length){
+  var remEntry=(D.remitos||[]).find(function(r){return r.pid===SP.id;});
+  if(!remEntry){
+    h+='<button class="btn bp" onclick="genRemitoFromDet(SP.id)" style="width:100%;margin-bottom:8px">🖨️ Emitir Remito</button>';
+    h+=alrt('i','Aún no se emitió el remito de este pedido.');
+  } else {
     var _numChanged=false;
     if(cl&&!cl.num){cl.num=nextSeq('cliSeq');_numChanged=true;}
-    var _remsAsc=remitos.slice().reverse();
-    for(var ai=0;ai<_remsAsc.length;ai++){if(!_remsAsc[ai].num){_remsAsc[ai].num=nextSeq('remSeq');_numChanged=true;}}
     if(_numChanged)saveD();
-    h+='<div class="bx" style="padding:4px 14px">';
-    for(var i=0;i<remitos.length;i++){
-      var rm=remitos[i];
-      var remLbl='RE-'+pad2(cl?cl.num:0,3)+'-'+pad2(rm.num,4);
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:'+(i<remitos.length-1?'1px solid var(--bd2)':'none')+'">';
-      h+='<div style="font-size:13px;color:var(--t2)">'+esc(remLbl)+' · Emitido el '+fmtD(rm.f)+'</div>';
-      h+='<button onclick="genRemito(\''+SP.id+'\',\''+rm.id+'\')" style="font-size:12px;padding:4px 10px;border:1px solid var(--bd);border-radius:6px;background:none;cursor:pointer;color:var(--t2)">Reimprimir</button>';
-      h+='</div>';
+    var remLbl='RE-'+pad2(cl?cl.num:0,3)+'-'+pad2(remEntry.num,4);
+    h+='<button class="btn bp" onclick="genRemitoFromDet(SP.id)" style="width:100%;margin-bottom:8px">🖨️ Reimprimir Remito</button>';
+    h+='<div class="bx" style="padding:12px 14px">';
+    h+='<div style="font-size:14px;font-weight:600;color:var(--t1)">'+esc(remLbl)+'</div>';
+    h+='<div style="font-size:13px;color:var(--t2);margin-top:2px">Emitido el '+fmtD(remEntry.f)+'</div>';
+    var _reps=remEntry.rep||[];
+    if(_reps.length){
+      h+='<div style="font-size:12px;color:var(--t3);margin-top:6px">Reimpreso '+_reps.length+(_reps.length===1?' vez':' veces')+' · última: '+fmtD(_reps[_reps.length-1])+'</div>';
     }
     h+='</div>';
-  } else {
-    h+=alrt('i','Aún no se generó ningún remito para este pedido.');
   }
   h+='</div>';
   setC(h);
 }
 function genRemitoFromDet(pedId){
-  var ped=D.ped.find(function(p){return p.id===pedId;});
-  var cl=ped?D.cli.find(function(c){return c.id===ped.cl;}):null;
-  if(cl&&!cl.num)cl.num=nextSeq('cliSeq');
-  var entry={id:uid(),pid:pedId,f:toStr(),num:nextSeq('remSeq')};
-  (D.remitos=D.remitos||[]).push(entry);
-  saveD();
-  genRemito(pedId,entry.id);
+  genRemito(pedId);
   renderPedDet();
 }
 function genRemitoInline(pedId){
-  var ped=D.ped.find(function(p){return p.id===pedId;});
-  var cl=ped?D.cli.find(function(c){return c.id===ped.cl;}):null;
-  if(cl&&!cl.num)cl.num=nextSeq('cliSeq');
-  var entry={id:uid(),pid:pedId,f:toStr(),num:nextSeq('remSeq')};
-  (D.remitos=D.remitos||[]).push(entry);
-  saveD();
-  genRemito(pedId,entry.id);
+  genRemito(pedId);
   renderPedidos();
 }
 function showCobForm(){
@@ -1542,6 +1528,18 @@ function renderNO(){
       h+='</div>';
     }
     h+='</div>';  // close no-cli-results
+    if(!srTerm&&!clSel&&D.cli.length){
+      var azCli=D.cli.slice().sort(function(a,b){return a.n.localeCompare(b.n,'es',{sensitivity:'base'});});
+      h+='<div class="fg" style="margin-top:10px"><label class="fl">O elegí de la lista</label>';
+      h+='<div style="border:1px solid var(--bd);border-radius:10px;max-height:260px;overflow-y:auto">';
+      for(var zi=0;zi<azCli.length;zi++){
+        var zc=azCli[zi],zid=zc.id,zn=zc.n.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        h+='<div onclick="NO.cliId=\''+zid+'\';NO._cliSr=\''+zn+'\';renderNO()" style="padding:10px 14px;cursor:pointer;font-size:14px;color:var(--t1);background:var(--cd);border-bottom:'+(zi<azCli.length-1?'1px solid var(--bd2)':'none')+'">'
+          +esc(zc.n)+(zc.may?' <span style="font-size:11px;background:var(--bgb);color:var(--bb);padding:2px 6px;border-radius:4px;margin-left:6px">May.</span>':'')
+          +'</div>';
+      }
+      h+='</div></div>';
+    }
     h+='<div id="no-cli-pill">';
     if(clSel){
       h+='<div style="display:flex;align-items:center;gap:8px;padding:10px 13px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;margin-top:6px">';
@@ -1735,6 +1733,8 @@ function confirmOrd(){
 var REMITO_CSS=`
 
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  @page { size: A4 landscape; margin: 0; }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -2211,7 +2211,6 @@ var REMITO_CSS=`
 
   /* ─── PRINT ──────────────────────────────────────────── */
   @media print {
-    @page { size: A4 landscape; margin: 0; }
     html, body {
       background: white;
       padding: 0;
@@ -2234,20 +2233,20 @@ var REMITO_CSS=`
   .copy-column .sheet { width: 536px !important; box-sizing: border-box; box-shadow: none; }
   .cut-line-v { display: inline-block; width: 14px; vertical-align: top; border-left: 1px dashed #bbb; margin: 0 1px; }
   @media print {
-    @page { size: A4 landscape; margin: 0; }
     html, body { background: white; padding: 0; margin: 0; }
-    .a4-page { width: 100%; height: 100vh; box-shadow: none; padding: 10px; }
+    .a4-page { width: 297mm; height: 210mm; box-shadow: none; padding: 10px; box-sizing: border-box; }
     .copy-column { width: calc(50% - 9px) !important; }
     .copy-column .sheet { width: calc(50% - 9px) !important; }
-    .cut-line-v { height: calc(100vh - 20px); }
+    .cut-line-v { height: calc(210mm - 20px); }
   }
 
 `;
+
 function remitoCopyHtml(v){
   var COPY_LABEL=v.COPY_LABEL,BRAND_NAME=v.BRAND_NAME,BRAND_SUB=v.BRAND_SUB,REMITO_NUM=v.REMITO_NUM,
       FECHA_EMISION=v.FECHA_EMISION,PEDIDO_NUM=v.PEDIDO_NUM,CLI_NOMBRE=v.CLI_NOMBRE,CLI_DIRLOC=v.CLI_DIRLOC,
       CLI_TEL=v.CLI_TEL,TIPO_ENTREGA=v.TIPO_ENTREGA,OBSERVACIONES=v.OBSERVACIONES,ITEM_ROWS=v.ITEM_ROWS,
-      SUBTOTAL=v.SUBTOTAL,ENVIO=v.ENVIO,TOTAL=v.TOTAL,FOOTER_EXTRAS=v.FOOTER_EXTRAS;
+      SUBTOTAL=v.SUBTOTAL,ENVIO=v.ENVIO,TOTAL=v.TOTAL,FOOTER_EXTRAS=v.FOOTER_EXTRAS,REIMPRESION_FECHA=v.REIMPRESION_FECHA;
   return `  <div class="copy-banner">
     <div class="copy-banner-line"></div>
     <div class="copy-banner-text">${COPY_LABEL}</div>
@@ -2284,6 +2283,7 @@ function remitoCopyHtml(v){
         <!-- Fuente: pedido.id o pedido.numero_pedido -->
         <div class="meta-value">${PEDIDO_NUM}</div>
       </div>
+      ${REIMPRESION_FECHA ? '<div class="meta-cell"><div class="meta-label">Fecha de reimpresión</div><div class="meta-value">'+REIMPRESION_FECHA+'</div></div>' : ''}
     </div>
 
     <!-- BODY GRID -->
@@ -2375,7 +2375,7 @@ function remitoCopyHtml(v){
   </div><!-- /remito -->
 `;
 }
-function genRemito(pedId,remId){
+function genRemito(pedId){
   var ped=D.ped.find(function(p){return p.id===pedId;});
   if(!ped){alert('Pedido no encontrado');return;}
   var cl=D.cli.find(function(c){return c.id===ped.cl;})||{n:'—',dir:'',tel:'',loc:''};
@@ -2383,22 +2383,22 @@ function genRemito(pedId,remId){
   var e=D.empresa||{},per=D.persona||{};
   var changed=false;
 
-  // Numeración real: se asigna una sola vez y persiste (pedidos/clientes/remitos anteriores a esta función se numeran la primera vez que se los usa)
+  // Numeración real: se asigna una sola vez y persiste (pedidos/clientes anteriores a esta función se numeran la primera vez que se los usa)
   if(!ped.num){ped.num=nextSeq('pedSeq');changed=true;}
   if(cl.id&&!cl.num){cl.num=nextSeq('cliSeq');changed=true;}
 
-  var remEntry=null;
-  if(remId)remEntry=(D.remitos||[]).find(function(r){return r.id===remId;});
+  // El remito se emite una única vez por pedido. Llamadas posteriores son reimpresiones (se registran, no generan un nuevo número).
+  var remEntry=(D.remitos=D.remitos||[]).find(function(r){return r.pid===pedId;});
+  var isReprint=!!remEntry;
   if(!remEntry){
-    var rems=(D.remitos||[]).filter(function(r){return r.pid===pedId;}).sort(function(a,b){return b.f.localeCompare(a.f);});
-    remEntry=rems[0];
-  }
-  if(!remEntry){
-    remEntry={id:uid(),pid:pedId,f:toStr()};
-    (D.remitos=D.remitos||[]).push(remEntry);
+    remEntry={id:uid(),pid:pedId,f:toStr(),num:nextSeq('remSeq'),rep:[]};
+    D.remitos.push(remEntry);
+    changed=true;
+  } else {
+    remEntry.rep=remEntry.rep||[];
+    remEntry.rep.push(toStr());
     changed=true;
   }
-  if(!remEntry.num){remEntry.num=nextSeq('remSeq');changed=true;}
   if(changed)saveD();
 
   var sv=D.svs.find(function(s){return s.id===ped.sv;});
@@ -2434,7 +2434,8 @@ function genRemito(pedId,remId){
     FECHA_EMISION:fmtD(ped.f),PEDIDO_NUM:pedidoNumStr,CLI_NOMBRE:esc(cl.n||'—'),
     CLI_DIRLOC:cliDirLocHtml,CLI_TEL:cliTelHtml,TIPO_ENTREGA:esc(sv?sv.n:'—'),
     OBSERVACIONES:esc((ped.obs||'').trim()||'Sin observaciones.'),ITEM_ROWS:itemRows,
-    SUBTOTAL:fmtRem(subtotal),ENVIO:fmtRem(envio),TOTAL:fmtRem(total),FOOTER_EXTRAS:footerExtras
+    SUBTOTAL:fmtRem(subtotal),ENVIO:fmtRem(envio),TOTAL:fmtRem(total),FOOTER_EXTRAS:footerExtras,
+    REIMPRESION_FECHA:isReprint?fmtD(remEntry.rep[remEntry.rep.length-1]):''
   };
   vars.COPY_LABEL='Copia para el vendedor';
   var copyVendedor=remitoCopyHtml(vars);
@@ -2449,6 +2450,7 @@ function genRemito(pedId,remId){
     +'</div></div><div class="cut-line-v"></div><div class="copy-column"><div class="sheet">'
     +copyComprador
     +'</div></div></div>'
+    +'<scr'+'ipt>(function(){function doPrint(){try{window.focus();window.print();}catch(e){}}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(doPrint,200);});}else{setTimeout(doPrint,500);}})();</scr'+'ipt>'
     +'</body></html>';
 
   var win=window.open('','_blank');
