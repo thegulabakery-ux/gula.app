@@ -1734,7 +1734,7 @@ var REMITO_CSS=`
 
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
-  @page { size: A4 landscape; margin: 0; }
+  @page { size: 1122px 794px; margin: 0; }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -2209,7 +2209,10 @@ var REMITO_CSS=`
     max-width: 280px;
   }
 
-  /* ─── PAGE WRAPPER (A4 landscape, 2 copias lado a lado) ── */
+  /* ─── PAGE WRAPPER (A4 horizontal, 2 copias lado a lado) ──
+     Únicamente px, fijos e idénticos en pantalla e impresión.
+     Cero mm / % / calc() en esta cadena: así se elimina cualquier
+     posibilidad de que el motor de impresión recalcule el layout. ── */
   html, body { background: #e8e6e2; margin: 0; padding: 32px 16px; }
   .a4-page {
     width: 1122px; height: 794px; background: #fff;
@@ -2217,15 +2220,13 @@ var REMITO_CSS=`
     padding: 14px; box-sizing: border-box; margin: 0 auto; overflow: hidden;
     break-inside: avoid; page-break-inside: avoid;
   }
-  .copy-column { display: inline-block; width: 536px; vertical-align: top; overflow: hidden; }
-  .copy-column .sheet { width: 100% !important; box-sizing: border-box; box-shadow: none; }
-  .cut-line-v { display: inline-block; width: 14px; vertical-align: top; border-left: 1px dashed #bbb; margin: 0 1px; }
+  .copy-column { display: inline-block; width: 536px; height: 766px; vertical-align: top; overflow: hidden; }
+  .copy-column .sheet { width: 536px !important; height: 766px; box-sizing: border-box; box-shadow: none; overflow: hidden; }
+  .cut-line-v { display: inline-block; width: 14px; height: 766px; vertical-align: top; border-left: 1px dashed #bbb; margin: 0 1px; }
   .items-table tr { break-inside: avoid; page-break-inside: avoid; }
   @media print {
     html, body { background: white; padding: 0; margin: 0; }
-    .a4-page { width: 297mm; height: 210mm; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: hidden; }
-    .copy-column { width: calc(50% - 9px) !important; overflow: hidden; }
-    .cut-line-v { min-height: calc(210mm - 20px); }
+    .a4-page { box-shadow: none; }
   }
 
 `;
