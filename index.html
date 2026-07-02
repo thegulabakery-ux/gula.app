@@ -2234,10 +2234,10 @@ var REMITO_CSS=`
   .cut-line-v { display: inline-block; width: 14px; vertical-align: top; border-left: 1px dashed #bbb; margin: 0 1px; }
   @media print {
     html, body { background: white; padding: 0; margin: 0; }
-    .a4-page { width: 297mm; height: 210mm; box-shadow: none; padding: 10px; box-sizing: border-box; }
-    .copy-column { width: calc(50% - 9px) !important; }
+    .a4-page { width: 297mm; min-height: 210mm; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: visible; }
+    .copy-column { width: calc(50% - 9px) !important; overflow: visible; }
     .copy-column .sheet { width: calc(50% - 9px) !important; }
-    .cut-line-v { height: calc(210mm - 20px); }
+    .cut-line-v { min-height: calc(210mm - 20px); }
   }
 
 `;
@@ -2388,10 +2388,12 @@ function genRemito(pedId){
   if(cl.id&&!cl.num){cl.num=nextSeq('cliSeq');changed=true;}
 
   // El remito se emite una única vez por pedido. Llamadas posteriores son reimpresiones (se registran, no generan un nuevo número).
+  // La numeración YYYY es correlativa POR CLIENTE (cl.remSeq), no global — así se puede ordenar toda la secuencia de remitos de un mismo cliente.
   var remEntry=(D.remitos=D.remitos||[]).find(function(r){return r.pid===pedId;});
   var isReprint=!!remEntry;
   if(!remEntry){
-    remEntry={id:uid(),pid:pedId,f:toStr(),num:nextSeq('remSeq'),rep:[]};
+    cl.remSeq=(cl.remSeq||0)+1;
+    remEntry={id:uid(),pid:pedId,f:toStr(),num:cl.remSeq,rep:[]};
     D.remitos.push(remEntry);
     changed=true;
   } else {
