@@ -1829,7 +1829,7 @@ var REMITO_CSS=`
 
   /* ─── REMITO COPY ────────────────────────────────────── */
   .remito {
-    padding: 12px 22px 14px;
+    padding: 9px 20px 9px;
   }
 
   /* ─── HEADER ─────────────────────────────────────────── */
@@ -1837,7 +1837,7 @@ var REMITO_CSS=`
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding-bottom: 12px;
+    padding-bottom: 7px;
     border-bottom: 2px solid var(--primary);
   }
 
@@ -1891,7 +1891,7 @@ var REMITO_CSS=`
   .meta-row {
     display: flex;
     gap: 0;
-    margin-top: 12px;
+    margin-top: 7px;
     border: 1px solid var(--color-border);
     border-radius: 5px;
     overflow: hidden;
@@ -1899,7 +1899,7 @@ var REMITO_CSS=`
 
   .meta-cell {
     flex: 1;
-    padding: 7px 10px;
+    padding: 4px 10px;
     border-right: 1px solid var(--color-border);
   }
   .meta-cell:last-child { border-right: none; }
@@ -1933,7 +1933,7 @@ var REMITO_CSS=`
   .body-grid {
     display: flex;
     flex-direction: column;
-    margin-top: 14px;
+    margin-top: 8px;
   }
 
   /* Fila superior: cliente | chips | observaciones */
@@ -1942,7 +1942,7 @@ var REMITO_CSS=`
     width: 100%;
     border-collapse: separate;
     border-spacing: 14px 0;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     margin-left: -14px; /* compensar border-spacing lateral */
     box-sizing: border-box;
   }
@@ -2075,7 +2075,7 @@ var REMITO_CSS=`
     letter-spacing: 0.6px;
     text-transform: uppercase;
     color: var(--color-ink-mid);
-    padding: 4px 0;
+    padding: 1.5px 0;
     text-align: left;
   }
 
@@ -2092,7 +2092,7 @@ var REMITO_CSS=`
   }
 
   .items-table td {
-    padding: 5px 0;
+    padding: 1.5px 0;
     font-size: 10px;
     color: var(--color-ink);
     vertical-align: middle;
@@ -2118,7 +2118,7 @@ var REMITO_CSS=`
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    margin-top: 4px;
+    margin-top: 3px;
     gap: 12px;
   }
 
@@ -2132,8 +2132,8 @@ var REMITO_CSS=`
   .sig-block {
     flex: 1;
     border-top: 2px solid var(--color-ink);
-    padding-top: 6px;
-    margin-top: 24px;
+    padding-top: 4px;
+    margin-top: 10px;
   }
 
   .sig-label {
@@ -2180,8 +2180,8 @@ var REMITO_CSS=`
 
   /* ─── FOOTER ─────────────────────────────────────────── */
   .footer {
-    margin-top: 16px;
-    padding-top: 8px;
+    margin-top: 8px;
+    padding-top: 5px;
     border-top: 1px solid var(--color-border);
     display: flex;
     justify-content: space-between;
@@ -2209,34 +2209,22 @@ var REMITO_CSS=`
     max-width: 280px;
   }
 
-  /* ─── PRINT ──────────────────────────────────────────── */
-  @media print {
-    html, body {
-      background: white;
-      padding: 0;
-      display: block;
-    }
-    .sheet {
-      width: 100%;
-      box-shadow: none;
-    }
-  }
-
-
+  /* ─── PAGE WRAPPER (A4 landscape, 2 copias lado a lado) ── */
   html, body { background: #e8e6e2; margin: 0; padding: 32px 16px; }
   .a4-page {
-    width: 1122px; min-height: 794px; background: #fff;
+    width: 1122px; height: 794px; background: #fff;
     box-shadow: 0 4px 32px rgba(0,0,0,0.12);
     padding: 14px; box-sizing: border-box; margin: 0 auto; overflow: hidden;
+    break-inside: avoid; page-break-inside: avoid;
   }
   .copy-column { display: inline-block; width: 536px; vertical-align: top; overflow: hidden; }
-  .copy-column .sheet { width: 536px !important; box-sizing: border-box; box-shadow: none; }
+  .copy-column .sheet { width: 100% !important; box-sizing: border-box; box-shadow: none; }
   .cut-line-v { display: inline-block; width: 14px; vertical-align: top; border-left: 1px dashed #bbb; margin: 0 1px; }
+  .items-table tr { break-inside: avoid; page-break-inside: avoid; }
   @media print {
     html, body { background: white; padding: 0; margin: 0; }
-    .a4-page { width: 297mm; min-height: 210mm; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: visible; }
-    .copy-column { width: calc(50% - 9px) !important; overflow: visible; }
-    .copy-column .sheet { width: calc(50% - 9px) !important; }
+    .a4-page { width: 297mm; height: 210mm; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: hidden; }
+    .copy-column { width: calc(50% - 9px) !important; overflow: hidden; }
     .cut-line-v { min-height: calc(210mm - 20px); }
   }
 
