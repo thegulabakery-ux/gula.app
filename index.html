@@ -1829,7 +1829,7 @@ var REMITO_CSS=`
 
   /* ─── REMITO COPY ────────────────────────────────────── */
   .remito {
-    padding: 15px 20px 6px;
+    padding: 15px 20px 4px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1902,7 +1902,7 @@ var REMITO_CSS=`
 
   .meta-cell {
     flex: 1;
-    padding: 3px 10px;
+    padding: 2px 10px;
     border-right: 1px solid var(--color-border);
   }
   .meta-cell:last-child { border-right: none; }
@@ -2097,7 +2097,7 @@ var REMITO_CSS=`
   }
 
   .items-table td {
-    padding: 1px 0;
+    padding: 0.5px 0;
     font-size: 10px;
     color: var(--color-ink);
     vertical-align: middle;
@@ -2126,14 +2126,19 @@ var REMITO_CSS=`
   }
 
   .signature-area {
-    display: flex;
-    gap: 40px;
-    width: 100%;
-    margin-top: 8px;
+    margin-top: auto;
+    padding-top: 5px;
+  }
+
+  .sig-box {
+    width: 240px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    padding: 10px 16px 8px;
+    box-sizing: border-box;
   }
 
   .sig-block {
-    flex: 1;
     border-top: 2px solid var(--color-ink);
     padding-top: 4px;
   }
@@ -2163,7 +2168,7 @@ var REMITO_CSS=`
   .totals-row:last-child { border-bottom: none; }
 
   .totals-row.total-final {
-    padding-top: 5px;
+    padding-top: 4px;
     font-weight: 700;
     font-size: 14px;
     color: var(--primary);
@@ -2183,7 +2188,7 @@ var REMITO_CSS=`
 
   /* ─── FOOTER ─────────────────────────────────────────── */
   .footer {
-    margin-top: auto;
+    margin-top: 10px;
     padding-top: 5px;
     border-top: 1px solid var(--color-border);
     display: flex;
@@ -2343,9 +2348,11 @@ function remitoCopyHtml(v){
             <div class="totals-row"><span>Costo de envío</span><span>${ENVIO}</span></div>
             <div class="totals-row total-final"><span>Total</span><span>${TOTAL}</span></div>
           </div>
-          <div class="signature-area">
-            <div class="sig-block"><div class="sig-label">Firma, aclaración y DNI - CLIENTE</div></div>
-            <div class="sig-block"><div class="sig-label">Fecha de recepción de pedido</div></div>
+        </div>
+
+        <div class="signature-area">
+          <div class="sig-box">
+            <div class="sig-block"><div class="sig-label">Firma, aclaración, DNI y fecha - CLIENTE</div></div>
           </div>
         </div>
 
