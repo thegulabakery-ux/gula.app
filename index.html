@@ -1829,7 +1829,7 @@ var REMITO_CSS=`
 
   /* ─── REMITO COPY ────────────────────────────────────── */
   .remito {
-    padding: 15px 20px 4px;
+    padding: 12px 20px 4px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1858,8 +1858,8 @@ var REMITO_CSS=`
   .brand-sub {
     font-size: 10px;
     color: var(--color-ink-light);
-    margin-top: 3px;
-    line-height: 1.5;
+    margin-top: 2px;
+    line-height: 1.3;
   }
 
   .doc-meta {
@@ -1875,7 +1875,7 @@ var REMITO_CSS=`
   }
 
   .doc-number {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
     letter-spacing: -1px;
     line-height: 1.1;
@@ -1894,7 +1894,7 @@ var REMITO_CSS=`
   .meta-row {
     display: flex;
     gap: 0;
-    margin-top: 5px;
+    margin-top: 4px;
     border: 1px solid var(--color-border);
     border-radius: 5px;
     overflow: hidden;
@@ -1973,7 +1973,7 @@ var REMITO_CSS=`
   .info-box {
     background: var(--color-bg-alt);
     border-radius: 5px;
-    padding: 5px 8px;
+    padding: 4px 8px;
   }
 
   .info-box-label {
@@ -1996,7 +1996,7 @@ var REMITO_CSS=`
     font-size: 11px;
     color: var(--color-ink-mid);
     margin-top: 3px;
-    line-height: 1.6;
+    line-height: 1.35;
   }
 
   .info-chip {
@@ -2005,7 +2005,7 @@ var REMITO_CSS=`
     gap: 6px;
     background: var(--color-bg-alt);
     border-radius: 5px;
-    padding: 4px 8px;
+    padding: 3px 8px;
   }
 
   .chip-icon {
@@ -2031,7 +2031,7 @@ var REMITO_CSS=`
   .obs-box {
     border: 1px solid var(--color-border);
     border-radius: 5px;
-    padding: 4px 8px;
+    padding: 3px 8px;
   }
   .obs-label {
     font-size: 9px;
@@ -2044,7 +2044,7 @@ var REMITO_CSS=`
   .obs-text {
     font-size: 10px;
     color: var(--color-ink-mid);
-    line-height: 1.5;
+    line-height: 1.3;
   }
 
   /* ─── RIGHT COLUMN ───────────────────────────────────── */
@@ -2080,7 +2080,7 @@ var REMITO_CSS=`
     letter-spacing: 0.6px;
     text-transform: uppercase;
     color: var(--color-ink-mid);
-    padding: 1.5px 0;
+    padding: 1px 0;
     text-align: left;
   }
 
@@ -2097,10 +2097,11 @@ var REMITO_CSS=`
   }
 
   .items-table td {
-    padding: 0.5px 0;
-    font-size: 10px;
+    padding: 0.25px 0;
+    font-size: 9.5px;
     color: var(--color-ink);
     vertical-align: middle;
+    line-height: 1.05;
   }
 
   .product-name { font-weight: 500; }
@@ -2109,13 +2110,14 @@ var REMITO_CSS=`
     display: inline-block;
     background: var(--primary-light);
     border-radius: 3px;
-    font-size: 9px;
+    font-size: 8.5px;
     font-weight: 600;
     color: var(--primary);
-    padding: 1px 6px;
+    padding: 0.5px 5px;
     margin-left: 5px;
     vertical-align: middle;
     letter-spacing: 0.2px;
+    line-height: 1.1;
   }
 
   /* ─── TOTALS + SIGNATURE ─────────────────────────────── */
@@ -2132,10 +2134,14 @@ var REMITO_CSS=`
 
   .sig-box {
     width: 240px;
+    height: 111px;
     border: 1px solid var(--color-border);
     border-radius: 5px;
-    padding: 10px 16px 8px;
+    padding: 8px 16px 8px;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
   }
 
   .sig-block {
@@ -2160,7 +2166,7 @@ var REMITO_CSS=`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 2px 0;
+    padding: 1px 0;
     border-bottom: 1px solid var(--color-border);
     font-size: 9.5px;
     color: var(--color-ink-mid);
@@ -2168,7 +2174,7 @@ var REMITO_CSS=`
   .totals-row:last-child { border-bottom: none; }
 
   .totals-row.total-final {
-    padding-top: 4px;
+    padding-top: 3px;
     font-weight: 700;
     font-size: 14px;
     color: var(--primary);
@@ -2188,8 +2194,8 @@ var REMITO_CSS=`
 
   /* ─── FOOTER ─────────────────────────────────────────── */
   .footer {
-    margin-top: 10px;
-    padding-top: 5px;
+    margin-top: 6px;
+    padding-top: 4px;
     border-top: 1px solid var(--color-border);
     display: flex;
     justify-content: space-between;
@@ -2200,7 +2206,7 @@ var REMITO_CSS=`
   .footer-contact {
     font-size: 10px;
     color: var(--color-ink-light);
-    line-height: 1.7;
+    line-height: 1.35;
   }
 
   .footer-contact strong {
@@ -2212,7 +2218,7 @@ var REMITO_CSS=`
     font-size: 9px;
     color: var(--color-ink-light);
     text-align: right;
-    line-height: 1.5;
+    line-height: 1.3;
     font-style: italic;
     max-width: 280px;
   }
