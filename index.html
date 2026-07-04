@@ -28,9 +28,12 @@
 }
 
 /* ─── BASE ─── */
-html,body{height:100%;background:#09090B;font-family:'DM Sans',system-ui,sans-serif;display:flex;justify-content:center;align-items:stretch}
-#app{width:100%;max-width:430px;height:100%;background:var(--bg);display:flex;flex-direction:column;position:relative;overflow:hidden}
-@media(min-width:700px){#app{box-shadow:0 0 0 1px rgba(0,0,0,.08),0 20px 60px rgba(0,0,0,.3);border-radius:36px;margin:24px auto;height:calc(100vh - 48px);align-self:flex-start}}
+/* Layout unificado: #app siempre ocupa el 100% del viewport, en cualquier
+   tamaño de pantalla. No existe "tarjeta flotante" ni ancho fijo distinto
+   por breakpoint — eso es lo que causaba anchos inconsistentes entre
+   pantallas y la sensación de "app móvil centrada" en desktop. */
+html,body{height:100%;background:var(--bg);font-family:'DM Sans',system-ui,sans-serif}
+#app{width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column;position:relative;overflow:hidden}
 .scr{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:max(104px,calc(88px + env(safe-area-inset-bottom,16px)));scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .scr::-webkit-scrollbar{display:none}
 @keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -79,7 +82,7 @@ html,body{height:100%;background:#09090B;font-family:'DM Sans',system-ui,sans-se
 /* Quick action bottom sheet */
 .qa-sheet-overlay{position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:200;opacity:0;transition:opacity .2s;}
 .qa-sheet-overlay.vis{opacity:1;}
-.qa-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--cd);border-radius:24px 24px 0 0;padding:0 16px;z-index:201;transform:translateY(100%);transition:transform .25s cubic-bezier(.32,1,.46,1);padding-bottom:max(24px,env(safe-area-inset-bottom,24px));}
+.qa-sheet{position:absolute;left:0;right:0;bottom:0;max-width:430px;margin:0 auto;background:var(--cd);border-radius:24px 24px 0 0;padding:0 16px;z-index:201;transform:translateY(100%);transition:transform .25s cubic-bezier(.32,1,.46,1);padding-bottom:max(24px,env(safe-area-inset-bottom,24px));}
 .qa-sheet.vis{transform:translateY(0);}
 .qa-sheet-handle{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:12px auto 20px;}
 .qa-sheet-title{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px;}
@@ -289,10 +292,12 @@ html,body{height:100%;background:#09090B;font-family:'DM Sans',system-ui,sans-se
 .filter-row{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin-bottom:8px}
 .filter-row::-webkit-scrollbar{display:none}
 
-/* ─── RESPONSIVE — Tablet & Desktop ─── */
+/* ─── RESPONSIVE — Tablet & Desktop ───
+   #app ya no cambia de ancho en ningún breakpoint (ver base arriba):
+   siempre ocupa el 100% del viewport. Estas reglas sólo escalan
+   paddings/tipografía para aprovechar mejor el espacio, sin tocar
+   la posición relativa de ningún elemento. */
 @media (min-width:768px){
-  #app{max-width:680px;border-radius:16px;margin:20px auto;height:calc(100vh - 40px);box-shadow:0 8px 40px rgba(0,0,0,.18);}
-  body{align-items:flex-start;padding:0;}
   .p{padding:20px 28px;}
   .hd{padding:16px 28px;}
   .hero-card{padding:24px 28px;}
@@ -301,10 +306,8 @@ html,body{height:100%;background:#09090B;font-family:'DM Sans',system-ui,sans-se
   .bx{padding:18px 20px;}
 }
 @media (min-width:1100px){
-  #app{max-width:900px;}
   .p{padding:24px 32px;}
   .hd{padding:18px 32px;}
-  .kg{grid-template-columns:repeat(4,1fr);}
 }
 </style>
 <script type="module">
@@ -3159,7 +3162,7 @@ function openEditItemModal(t,id){
   var overlay=document.createElement('div');
   overlay.id='edit-item-modal';
   overlay.setAttribute('data-t',t);overlay.setAttribute('data-id',id);
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:910;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
+  overlay.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:910;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;max-height:85vh;overflow-y:auto">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
     +'<div style="font-size:16px;font-weight:700;color:var(--t1)">Editar '+esc(obj.n)+'</div>'
@@ -4683,7 +4686,7 @@ function showOnboardingOverlay(){
   }
   var overlay=document.createElement('div');
   overlay.id='ob-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:950;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .2s ease';
+  overlay.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:950;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .2s ease';
   overlay.innerHTML='<div style="background:var(--cd);border-radius:28px 28px 0 0;width:100%;max-width:430px;padding:28px 24px 40px;box-shadow:0 -12px 48px rgba(0,0,0,.25)">'
     +'<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'
     +'<button onclick="skipOnboarding()" style="border:none;background:none;color:var(--t3);font-size:13px;cursor:pointer;font-family:DM Sans,sans-serif;padding:4px 8px">Saltar</button>'
@@ -5657,7 +5660,7 @@ function delPt(ptId){
   var c=$('C');
   if(c){
     c.insertAdjacentHTML('afterbegin',
-      '<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px" id="del-pt-confirm">'
+      '<div style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px" id="del-pt-confirm">'
       +'<div style="background:var(--cd);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,.3)">'
       +'<div style="font-size:17px;font-weight:700;color:var(--t1);margin-bottom:8px">¿Eliminar \"'+esc(pt.n)+'\"?</div>'
       +'<div style="font-size:13px;color:var(--t2);margin-bottom:16px">'
@@ -5705,7 +5708,7 @@ function openNewMpModal(cb){
   _mpModalCb=cb||null;
   var overlay=document.createElement('div');
   overlay.id='mp-modal-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
+  overlay.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
   var catOpts='<option value="">— Sin categoría —</option>'+(D.cmp||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   catOpts+='<option value="__new__">+ Nueva categoría...</option>';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:92vh;overflow-y:auto">'
@@ -5756,7 +5759,7 @@ function openNewCliModal(cb){
   };
   var overlay=document.createElement('div');
   overlay.id='cli-modal-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
+  overlay.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:88vh;overflow-y:auto">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">'
     +'<div style="font-size:17px;font-weight:700;color:var(--t1)">👤 Nuevo cliente</div>'
@@ -5910,7 +5913,7 @@ function openNewPtModal(){
   var cptOpts='<option value="">— Sin categoría —</option>'+(D.cpt||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('')+'<option value="__new__">+ Nueva categoría...</option>';
   var overlay=document.createElement('div');
   overlay.id='new-pt-modal-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
+  overlay.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:85vh;overflow-y:auto">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">'
     +'<div style="font-size:17px;font-weight:700;color:var(--t1)">🍰 Nuevo producto</div>'
@@ -6005,7 +6008,7 @@ function openNewMeModal(cb){
   _meModalCb=cb||null;
   var overlay=document.createElement('div');
   overlay.id='me-modal-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
+  overlay.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fu .15s ease';
   var catOpts='<option value="">— Sin categoría —</option>'+(D.cme||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n);}).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('');
   catOpts+='<option value="__new__">+ Nueva categoría...</option>';
   overlay.innerHTML='<div style="background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.2);max-height:92vh;overflow-y:auto">'
