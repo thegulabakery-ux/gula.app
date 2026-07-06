@@ -561,6 +561,21 @@ async function loadD(){
   } else if(!D._migSueldosPersonal){
     D._migSueldosPersonal=true;
   }
+  if(!D._migHorasEstado){
+    (D.horas||[]).forEach(function(h){if(!h.estado)h.estado='pendiente';});
+    D._migHorasEstado=true;
+  }
+  if(!D._migPagosConceptos){
+    (D.pagosPersonal||[]).forEach(function(p){
+      if(!p.conceptos){
+        p.conceptos=[{id:uid(),concepto:p.concepto,importe:p.monto||0}];
+        delete p.concepto;
+        delete p.monto;
+      }
+      if(!p.horasIds)p.horasIds=[];
+    });
+    D._migPagosConceptos=true;
+  }
   if(!D.ptp)D.ptp=[];
   if(!D.persona)D.persona={nombre:'',apellido:'',email:'',tel:'',dni:'',cargo:''};
   if(!D.empresa)D.empresa={nombre:'',razon:'',cuit:'',iva:'',inicio:'',provincia:'',localidad:'',dir:'',cp:'',web:'',ig:'',fb:'',li:''};
@@ -1243,7 +1258,7 @@ function renderGastoDet(){
   }
   // Sueldos: redirige al módulo de Personal (gestión de horas, empleados y pagos)
   if(isSueldos){
-    var totPersonalMes=(D.pagosPersonal||[]).filter(function(p){return p.fecha&&p.fecha.substring(0,7)===(SS.gasPer||curPer())&&p.concepto==='sueldo';}).reduce(function(s,p){return s+p.monto;},0);
+    var totPersonalMes=(D.pagosPersonal||[]).filter(function(p){return p.fecha&&p.fecha.substring(0,7)===(SS.gasPer||curPer());}).reduce(function(s,p){return s+pagoConceptoImporte(p,'sueldo');},0);
     h+='<div class="sc">Personal</div>';
     h+='<div class="bx" style="cursor:pointer" onclick="go(\'personal\')">';
     h+='<div style="display:flex;justify-content:space-between;align-items:center">';
@@ -1305,9 +1320,12 @@ function clrGastoAddFw(){var fw=$('gasto-add-fw');if(fw)fw.innerHTML='';}
 // ═════════════════════════════════════════════════════
 function horaImporte(h){return (h.horas||0)*(h.valorHora||0);}
 function empHoras(emId){return (D.horas||[]).filter(function(h){return h.em===emId;}).sort(function(a,b){return b.fecha.localeCompare(a.fecha);});}
+function empHorasPendientes(emId){return (D.horas||[]).filter(function(h){return h.em===emId&&(h.estado||'pendiente')==='pendiente';}).sort(function(a,b){return a.fecha.localeCompare(b.fecha);});}
 function empPagos(emId){return (D.pagosPersonal||[]).filter(function(p){return p.em===emId;}).sort(function(a,b){return b.fecha.localeCompare(a.fecha);});}
 function empTotalTrabajado(emId){return empHoras(emId).reduce(function(s,h){return s+horaImporte(h);},0);}
-function empTotalPagadoConcepto(emId,concepto){return empPagos(emId).filter(function(p){return p.concepto===concepto;}).reduce(function(s,p){return s+p.monto;},0);}
+function pagoTotal(pago){return (pago.conceptos||[]).reduce(function(s,c){return s+(c.importe||0);},0);}
+function pagoConceptoImporte(pago,conceptoId){return (pago.conceptos||[]).filter(function(c){return c.concepto===conceptoId;}).reduce(function(s,c){return s+(c.importe||0);},0);}
+function empTotalPagadoConcepto(emId,concepto){return empPagos(emId).reduce(function(s,p){return s+pagoConceptoImporte(p,concepto);},0);}
 function empPendiente(emId){return empTotalTrabajado(emId)-empTotalPagadoConcepto(emId,'sueldo');}
 function weekRange(dateStr){
   var d=new Date(dateStr+'T00:00:00');
@@ -1321,7 +1339,7 @@ function conceptoNombre(id){var c=(D.conceptosPago||[]).find(function(x){return 
 function syncSueldosGastoFijo(per){
   var sCat=D.cgi.find(function(c){return c.n&&c.n.toLowerCase().indexOf('sueldo')>=0;});
   if(!sCat)return;
-  var tot=(D.pagosPersonal||[]).filter(function(p){return p.concepto==='sueldo'&&p.fecha&&p.fecha.substring(0,7)===per;}).reduce(function(s,p){return s+p.monto;},0);
+  var tot=(D.pagosPersonal||[]).filter(function(p){return p.fecha&&p.fecha.substring(0,7)===per;}).reduce(function(s,p){return s+pagoConceptoImporte(p,'sueldo');},0);
   var gi=D.gi.find(function(g){return g.c===sCat.id&&g.p===per;});
   if(tot>0){if(gi){gi.v=tot;}else{D.gi.push({id:uid(),c:sCat.id,p:per,v:tot});}}
   else if(gi){D.gi=D.gi.filter(function(g){return g.id!==gi.id;});}
@@ -1391,7 +1409,13 @@ function renderPersonalDet(){
   if(!horas.length){h+='<div style="color:var(--t3);font-size:13px;margin-bottom:8px">Sin horas cargadas todavía.</div>';}
   for(var i=0;i<Math.min(horas.length,15);i++){
     var hh=horas[i];
-    h+=li2('⏱',fmtD(hh.fecha),hh.horas+' hs · '+fmt(hh.valorHora)+'/hora','<div style="display:flex;align-items:center;gap:8px"><div style="text-align:right;font-size:14px;font-weight:600;color:var(--t1)">'+fmt(horaImporte(hh))+'</div><button onclick="event.stopPropagation();delHora(\''+hh.id+'\')" style="border:none;background:none;cursor:pointer;font-size:15px;color:var(--rd)">🗑</button></div>','');
+    var liquidada=hh.estado==='liquidado';
+    var estBadge=liquidada
+      ?'<span style="font-size:10px;font-weight:600;color:var(--gn);background:rgba(16,150,72,.1);padding:2px 6px;border-radius:6px;margin-left:6px">Liquidada</span>'
+      :'<span style="font-size:10px;font-weight:600;color:var(--br);background:rgba(225,29,72,.08);padding:2px 6px;border-radius:6px;margin-left:6px">Pendiente</span>';
+    var metaTxt=hh.horas+' hs · '+fmt(hh.valorHora)+'/hora'+(liquidada&&hh.fechaPago?' · pagado '+fmtD(hh.fechaPago):'')+estBadge;
+    var delBtn=liquidada?'':'<button onclick="event.stopPropagation();delHora(\''+hh.id+'\')" style="border:none;background:none;cursor:pointer;font-size:15px;color:var(--rd)">🗑</button>';
+    h+=li2('⏱',fmtD(hh.fecha),metaTxt,'<div style="display:flex;align-items:center;gap:8px"><div style="text-align:right;font-size:14px;font-weight:600;color:var(--t1)">'+fmt(horaImporte(hh))+'</div>'+delBtn+'</div>','');
   }
   if(horas.length>15)h+='<div style="font-size:12px;color:var(--t3);margin-bottom:8px">+'+(horas.length-15)+' registros más...</div>';
 
@@ -1400,7 +1424,12 @@ function renderPersonalDet(){
   if(!pagos.length){h+='<div style="color:var(--t3);font-size:13px;margin-bottom:8px">Sin pagos registrados todavía.</div>';}
   for(var i=0;i<Math.min(pagos.length,15);i++){
     var pg=pagos[i];
-    h+=li2('💵',conceptoNombre(pg.concepto),fmtD(pg.fecha)+(pg.nota?' · '+esc(pg.nota):''),'<div style="display:flex;align-items:center;gap:8px"><div style="font-size:14px;font-weight:600;color:var(--gn)">'+fmt(pg.monto)+'</div><button onclick="event.stopPropagation();delPago(\''+pg.id+'\')" style="border:none;background:none;cursor:pointer;font-size:15px;color:var(--rd)">🗑</button></div>','');
+    var cs=pg.conceptos||[];
+    var titulo=cs.length?conceptoNombre(cs[0].concepto)+(cs.length>1?' +'+(cs.length-1):''):'Pago';
+    var desglose=cs.map(function(c){return esc(conceptoNombre(c.concepto))+' '+fmt(c.importe);}).join(' · ');
+    var nHoras=(pg.horasIds||[]).length;
+    var metaPg=fmtD(pg.fecha)+(desglose?' · '+desglose:'')+(nHoras?' · '+nHoras+' jornada'+(nHoras>1?'s':'')+' liquidada'+(nHoras>1?'s':''):'')+(pg.nota?' · '+esc(pg.nota):'');
+    h+=li2('💵',titulo,metaPg,'<div style="display:flex;align-items:center;gap:8px"><div style="font-size:14px;font-weight:600;color:var(--gn)">'+fmt(pagoTotal(pg))+'</div><button onclick="event.stopPropagation();showPagoForm(\''+em.id+'\',\''+pg.id+'\')" style="border:none;background:none;cursor:pointer;font-size:15px;color:var(--t2)">✏️</button><button onclick="event.stopPropagation();delPago(\''+pg.id+'\')" style="border:none;background:none;cursor:pointer;font-size:15px;color:var(--rd)">🗑</button></div>','');
   }
   if(pagos.length>15)h+='<div style="font-size:12px;color:var(--t3);margin-bottom:8px">+'+(pagos.length-15)+' registros más...</div>';
 
@@ -1440,51 +1469,157 @@ function saveHoras(emId){
   renderPersonalDet();
 }
 function delHora(id){
+  var hh=(D.horas||[]).find(function(h){return h.id===id;});
+  if(hh&&hh.estado==='liquidado'){alert('Esta jornada ya fue liquidada. Para modificarla, editá o eliminá el pago correspondiente.');return;}
   D.horas=(D.horas||[]).filter(function(h){return h.id!==id;});
   saveD();renderPersonalDet();
 }
-function showPagoForm(emId){
-  var conceptOpts=(D.conceptosPago||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.n)+'</option>';}).join('')+'<option value="__new__">+ Nuevo concepto...</option>';
-  $('pago-fw').innerHTML='<div class="bx" style="margin-top:8px">'
-    +'<div style="font-size:14px;font-weight:600;margin-bottom:12px">Registrar pago</div>'
-    +'<div class="fg"><label class="fl">Concepto</label><select class="fs" id="pg-concepto" onchange="pgConceptoChg(this.value)">'+conceptOpts+'</select></div>'
-    +'<div id="pg-concepto-new" style="display:none;margin-bottom:10px"><input class="fi" id="pg-concepto-n" placeholder="Nombre del nuevo concepto"></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-    +'<div class="fg"><label class="fl">Monto ($)</label><input class="fi" type="number" id="pg-monto" placeholder="ej: 150000"></div>'
-    +'<div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="pg-fecha" value="'+toStr()+'"></div>'
-    +'</div>'
-    +'<div class="fg"><label class="fl">Nota (opcional)</label><input class="fi" id="pg-nota" placeholder="ej: Transferencia Galicia"></div>'
-    +'<div style="display:flex;gap:8px"><button class="btn bs2" style="flex:1" onclick="clrPagoFw()">Cancelar</button><button class="btn bp" style="flex:2" onclick="savePago(\''+emId+'\')">💾 Guardar</button></div>'
-    +'</div>';
+var PFS=null; // estado transitorio del formulario de pago: {emId,pagoId,fecha,nota,conceptos:[{id,concepto,importe}],horasSel:{hid:true}}
+function showPagoForm(emId,pagoId){
+  var pago=pagoId?(D.pagosPersonal||[]).find(function(p){return p.id===pagoId;}):null;
+  var conceptos=[],horasSel={};
+  if(pago){
+    conceptos=(pago.conceptos||[]).map(function(c){return {id:c.id||uid(),concepto:c.concepto,importe:c.importe};});
+    (pago.horasIds||[]).forEach(function(hid){horasSel[hid]=true;});
+  }
+  PFS={emId:emId,pagoId:pagoId||null,fecha:(pago?pago.fecha:toStr()),nota:(pago?pago.nota||'':''),conceptos:conceptos,horasSel:horasSel};
+  renderPagoForm();
 }
-function pgConceptoChg(val){
-  var d=$('pg-concepto-new');
-  if(d)d.style.display=val==='__new__'?'block':'none';
+function pfsHorasDisponibles(){
+  if(!PFS)return [];
+  return (D.horas||[]).filter(function(h){
+    if(h.em!==PFS.emId)return false;
+    if((h.estado||'pendiente')==='pendiente')return true;
+    return !!(PFS.pagoId&&h.estado==='liquidado'&&h.pagoId===PFS.pagoId);
+  }).sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
 }
-function clrPagoFw(){var fw=$('pago-fw');if(fw)fw.innerHTML='';}
-function savePago(emId){
-  var concepto=$('pg-concepto')&&$('pg-concepto').value;
-  if(concepto==='__new__'){
-    var nn=($('pg-concepto-n')&&$('pg-concepto-n').value||'').trim();
-    if(!nn){alert('Ingresá el nombre del nuevo concepto');return;}
+function pfsHorasTotal(){
+  return pfsHorasDisponibles().filter(function(h){return PFS.horasSel[h.id];}).reduce(function(s,h){return s+horaImporte(h);},0);
+}
+function pfsTotal(){return (PFS.conceptos||[]).reduce(function(s,c){return s+(parseFloat(c.importe)||0);},0);}
+function pfsToggleHora(hid){
+  PFS.horasSel[hid]=!PFS.horasSel[hid];
+  var tot=pfsHorasTotal();
+  var idx=PFS.conceptos.findIndex(function(c){return c.concepto==='sueldo';});
+  if(idx>=0){PFS.conceptos[idx].importe=tot;}
+  else if(tot>0){PFS.conceptos.push({id:uid(),concepto:'sueldo',importe:tot});}
+  renderPagoForm();
+}
+function pfsSetConcepto(idx,val){
+  if(val==='__new__'){
+    var nn=(prompt('Nombre del nuevo concepto:')||'').trim();
+    if(!nn){renderPagoForm();return;}
     var newId=uid();
     (D.conceptosPago=D.conceptosPago||[]).push({id:newId,n:nn,sistema:false});
-    concepto=newId;
+    PFS.conceptos[idx].concepto=newId;
+  } else {
+    PFS.conceptos[idx].concepto=val;
   }
-  var monto=parseFloat($('pg-monto')&&$('pg-monto').value)||0;
-  if(!monto||monto<=0){alert('Ingresá un monto válido');return;}
-  var fecha=($('pg-fecha')&&$('pg-fecha').value)||toStr();
-  var nota=($('pg-nota')&&$('pg-nota').value||'').trim();
-  (D.pagosPersonal=D.pagosPersonal||[]).push({id:uid(),em:emId,concepto:concepto,monto:monto,fecha:fecha,nota:nota});
-  if(concepto==='sueldo')syncSueldosGastoFijo(fecha.substring(0,7));
+  renderPagoForm();
+}
+function pfsSetImporte(idx,val){
+  PFS.conceptos[idx].importe=parseFloat(val)||0;
+  var t=$('pfs-total');
+  if(t)t.textContent=fmt(pfsTotal());
+}
+function pfsAddConcepto(){
+  var usados={};
+  PFS.conceptos.forEach(function(c){usados[c.concepto]=true;});
+  var def=(D.conceptosPago||[]).find(function(c){return !usados[c.id];})||(D.conceptosPago||[])[0];
+  PFS.conceptos.push({id:uid(),concepto:def?def.id:'otros',importe:0});
+  renderPagoForm();
+}
+function pfsRemoveConcepto(idx){
+  PFS.conceptos.splice(idx,1);
+  renderPagoForm();
+}
+function renderPagoForm(){
+  var fw=$('pago-fw');
+  if(!fw||!PFS)return;
+  var horasDisp=pfsHorasDisponibles();
+  var h='<div class="bx" style="margin-top:8px">';
+  h+='<div style="font-size:14px;font-weight:600;margin-bottom:12px">'+(PFS.pagoId?'Editar pago':'Registrar pago')+'</div>';
+  if(horasDisp.length){
+    h+='<div class="sc" style="margin-top:0">Horas pendientes de liquidar</div>';
+    for(var i=0;i<horasDisp.length;i++){
+      var hh=horasDisp[i];
+      var chk=PFS.horasSel[hh.id]?' checked':'';
+      h+='<label style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--bd)">'
+        +'<input type="checkbox"'+chk+' onchange="pfsToggleHora(\''+hh.id+'\')">'
+        +'<div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--t1)">'+fmtD(hh.fecha)+'</div><div style="font-size:11px;color:var(--t3)">'+hh.horas+' hs · '+fmt(hh.valorHora)+'/hora</div></div>'
+        +'<div style="font-size:13px;font-weight:600;color:var(--t1)">'+fmt(horaImporte(hh))+'</div>'
+        +'</label>';
+    }
+    h+='<div style="text-align:right;font-size:12px;color:var(--t3);margin:6px 0 4px">Seleccionado: <b style="color:var(--t1)">'+fmt(pfsHorasTotal())+'</b></div>';
+  }
+  h+='<div class="sc">Conceptos del pago</div>';
+  for(var j=0;j<PFS.conceptos.length;j++){
+    var cn=PFS.conceptos[j];
+    var opts=(D.conceptosPago||[]).map(function(c){return '<option value="'+c.id+'"'+(c.id===cn.concepto?' selected':'')+'>'+esc(c.n)+'</option>';}).join('')+'<option value="__new__">+ Nuevo concepto...</option>';
+    h+='<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">'
+      +'<div class="fg" style="flex:1;margin-bottom:0"><label class="fl">Concepto</label><select class="fs" onchange="pfsSetConcepto('+j+',this.value)">'+opts+'</select></div>'
+      +'<div class="fg" style="flex:1;margin-bottom:0"><label class="fl">Importe ($)</label><input class="fi" type="number" value="'+(cn.importe||0)+'" oninput="pfsSetImporte('+j+',this.value)"></div>'
+      +'<button onclick="pfsRemoveConcepto('+j+')" style="border:none;background:none;cursor:pointer;font-size:16px;color:var(--rd);padding-bottom:9px">🗑</button>'
+      +'</div>';
+  }
+  h+='<button class="btn bs2" style="width:100%;margin-bottom:10px" onclick="pfsAddConcepto()">+ Agregar concepto</button>';
+  h+='<div class="rp" style="font-size:14px;font-weight:700"><span>Total del pago</span><span id="pfs-total" style="color:var(--t1)">'+fmt(pfsTotal())+'</span></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">'
+    +'<div class="fg" style="margin-bottom:0"><label class="fl">Fecha</label><input class="fi" type="date" value="'+PFS.fecha+'" onchange="PFS.fecha=this.value"></div>'
+    +'<div class="fg" style="margin-bottom:0"><label class="fl">Nota (opcional)</label><input class="fi" value="'+esc(PFS.nota)+'" oninput="PFS.nota=this.value" placeholder="ej: Transferencia Galicia"></div>'
+    +'</div>';
+  h+='<div style="display:flex;gap:8px;margin-top:10px">'
+    +'<button class="btn bs2" style="flex:1" onclick="clrPagoFw()">Cancelar</button>'
+    +'<button class="btn bp" style="flex:2" onclick="savePago()">💾 Guardar</button>'
+    +'</div>';
+  h+='</div>';
+  fw.innerHTML=h;
+}
+function clrPagoFw(){var fw=$('pago-fw');if(fw)fw.innerHTML='';PFS=null;}
+function savePago(){
+  if(!PFS)return;
+  var conceptos=(PFS.conceptos||[]).filter(function(c){return c.concepto;}).map(function(c){return {id:c.id||uid(),concepto:c.concepto,importe:parseFloat(c.importe)||0};});
+  if(!conceptos.length){alert('Agregá al menos un concepto');return;}
+  var total=conceptos.reduce(function(s,c){return s+c.importe;},0);
+  if(total<=0){alert('El importe total debe ser mayor a cero');return;}
+  var fecha=PFS.fecha||toStr();
+  var nota=(PFS.nota||'').trim();
+  var horasIds=Object.keys(PFS.horasSel).filter(function(hid){return PFS.horasSel[hid];});
+  var emId=PFS.emId,pagoId=PFS.pagoId,oldPeriodo=null;
+  if(pagoId){
+    var old=(D.pagosPersonal||[]).find(function(p){return p.id===pagoId;});
+    if(old){
+      oldPeriodo=old.fecha?old.fecha.substring(0,7):null;
+      (old.horasIds||[]).forEach(function(hid){
+        var hh=(D.horas||[]).find(function(x){return x.id===hid;});
+        if(hh){hh.estado='pendiente';delete hh.pagoId;delete hh.fechaPago;}
+      });
+      old.conceptos=conceptos;old.horasIds=horasIds;old.fecha=fecha;old.nota=nota;
+    }
+  } else {
+    pagoId=uid();
+    (D.pagosPersonal=D.pagosPersonal||[]).push({id:pagoId,em:emId,fecha:fecha,nota:nota,conceptos:conceptos,horasIds:horasIds});
+  }
+  horasIds.forEach(function(hid){
+    var hh=(D.horas||[]).find(function(x){return x.id===hid;});
+    if(hh){hh.estado='liquidado';hh.pagoId=pagoId;hh.fechaPago=fecha;}
+  });
+  if(oldPeriodo&&oldPeriodo!==fecha.substring(0,7))syncSueldosGastoFijo(oldPeriodo);
+  syncSueldosGastoFijo(fecha.substring(0,7));
   saveD();
   clrPagoFw();
   renderPersonalDet();
 }
 function delPago(id){
   var p=(D.pagosPersonal||[]).find(function(x){return x.id===id;});
+  if(!p)return;
+  (p.horasIds||[]).forEach(function(hid){
+    var hh=(D.horas||[]).find(function(x){return x.id===hid;});
+    if(hh){hh.estado='pendiente';delete hh.pagoId;delete hh.fechaPago;}
+  });
+  var per=p.fecha?p.fecha.substring(0,7):null;
   D.pagosPersonal=(D.pagosPersonal||[]).filter(function(x){return x.id!==id;});
-  if(p&&p.concepto==='sueldo')syncSueldosGastoFijo(p.fecha.substring(0,7));
+  if(per)syncSueldosGastoFijo(per);
   saveD();renderPersonalDet();
 }
 
