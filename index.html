@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -4124,6 +4126,7 @@ function renderMas(){
   var SVG_NOTIF='<svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>';
   var SVG_REPORT='<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
   var SVG_CONFIG='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>';
+  var SVG_EXPORT='<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
   var SVG_CHV='<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--t3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><polyline points="9 18 15 12 9 6"/></svg>';
 
   var items=[
@@ -4134,6 +4137,7 @@ function renderMas(){
     {ic:SVG_PROV,t:'Proveedores',s:D.pvs.length+' registrados',a:"go('proveedores')"},
     {ic:SVG_NOTIF,t:'Notificaciones',s:nc?nc+' alertas activas':'Sin alertas',a:"go('notificaciones')",badge:nc},
     {ic:SVG_REPORT,t:'Reportes',s:'Insights y análisis del negocio',a:"go('reportes')"},
+    {ic:SVG_EXPORT,t:'Exportar datos',s:'Excel y CSV para tu contador o tus propios análisis',a:"openExportCenter()"},
     {ic:SVG_CONFIG,t:'Configuración',s:'Negocio y datos',a:"go('config')"}
   ];
 
@@ -4163,6 +4167,308 @@ function renderMas(){
   h+='</div>';
   h+='</div>';
   setC(h);
+}
+
+// ═════════════════════════════════════════════════════
+//  CENTRO DE EXPORTACIONES
+//  Seguridad: TODO lo que se exporta sale exclusivamente de la
+//  variable D en memoria, que loadD() ya carga scopeada a
+//  _currentUserId (users/{uid} en Firestore). Ninguna función de
+//  este módulo acepta un uid ni consulta Firestore por su cuenta,
+//  así que estructuralmente no hay forma de que un usuario exporte
+//  datos de otro. _assertExportAllowed() es una traba adicional
+//  por las dudas (sesión caída, D vacío, etc.).
+// ═════════════════════════════════════════════════════
+var EXP=null; // estado transitorio del wizard: {step,catId,sel,periodo,desde,hasta,formato,periodoSkipped}
+
+var EXPORT_CATS=[
+  {id:'catalogo',t:'Productos y catálogo',s:'Productos, recetas, ingredientes y empaques'},
+  {id:'ventas',t:'Pedidos y ventas',s:'Pedidos, ventas detalladas y cobranzas'},
+  {id:'clientes',t:'Clientes',s:'Tu cartera de clientes'},
+  {id:'proveedores',t:'Proveedores',s:'Tus proveedores'},
+  {id:'finanzas',t:'Gastos fijos',s:'Luz, gas, alquiler, sueldos y más'},
+  {id:'personal',t:'Personal y pagos',s:'Empleados, horas y pagos'},
+  {id:'todo',t:'Todo el negocio',s:'Exportación completa'}
+];
+
+function _nm(arr,id){var it=(arr||[]).find(function(x){return x.id===id;});return it?it.n:'';}
+function _pedNumStr(p){if(p&&p.num){var anio=(p.f||toStr()).split('-')[0];return '#'+anio+'-'+pad2(p.num,3);}return p?p.id:'';}
+function _inPeriod(dateStr,from,to){if(!dateStr)return false;if(!from&&!to)return true;if(from&&dateStr<from)return false;if(to&&dateStr>to)return false;return true;}
+function _inPeriodYM(pStr,from,to){if(!pStr)return false;if(!from&&!to)return true;var f=from?from.slice(0,7):null,t=to?to.slice(0,7):null;if(f&&pStr<f)return false;if(t&&pStr>t)return false;return true;}
+
+var EXPORT_DATASETS=[
+  {id:'productos',cat:['catalogo','todo'],label:'Productos',hasPeriod:false,
+    cols:['Nombre','Categoría','Precio de venta','Rinde (u. por receta)','Última actualización de precio'],
+    rows:function(){return D.pt.map(function(p){
+      var ult=D.ptp.filter(function(x){return x.pt===p.id;}).sort(function(a,b){return a.f.localeCompare(b.f);}).pop();
+      return [p.n,_nm(D.cpt,p.c),p.v,p.yields||1,ult?fmtD(ult.f):''];
+    });}},
+  {id:'histPreciosProductos',cat:['catalogo','todo'],label:'Historial de precios de productos',hasPeriod:true,
+    cols:['Producto','Precio','Vigente desde'],
+    rows:function(from,to){return D.ptp.filter(function(x){return _inPeriod(x.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(x){return [_nm(D.pt,x.pt),x.v,fmtD(x.f)];});}},
+  {id:'recetas',cat:['catalogo','todo'],label:'Recetas',hasPeriod:false,
+    cols:['Producto','Tipo de insumo','Insumo','Cantidad','Unidad'],
+    rows:function(){return D.rec.map(function(r){
+      var esMP=r.t==='MP';var src=esMP?D.mp:D.me;var it=src.find(function(x){return x.id===r.i;});
+      return [_nm(D.pt,r.pt),esMP?'Materia prima':'Empaque',it?it.n:'',r.q,it?it.u:''];
+    });}},
+  {id:'ingredientes',cat:['catalogo','todo'],label:'Ingredientes',hasPeriod:false,
+    cols:['Nombre','Categoría','Unidad','Proveedor habitual','Último precio','Fecha de último precio'],
+    rows:function(){return D.mp.map(function(m){
+      var ult=D.mpp.filter(function(x){return x.m===m.id;}).sort(function(a,b){return a.f.localeCompare(b.f);}).pop();
+      return [m.n,_nm(D.cmp,m.c),m.u,_nm(D.pvs,m.pv),ult?ult.v:'',ult?fmtD(ult.f):''];
+    });}},
+  {id:'histPreciosIngredientes',cat:['catalogo','todo'],label:'Historial de precios de ingredientes',hasPeriod:true,
+    cols:['Ingrediente','Proveedor','Precio','Vigente desde'],
+    rows:function(from,to){return D.mpp.filter(function(x){return _inPeriod(x.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(x){return [_nm(D.mp,x.m),_nm(D.pvs,x.pv),x.v,fmtD(x.f)];});}},
+  {id:'empaques',cat:['catalogo','todo'],label:'Materiales de empaque',hasPeriod:false,
+    cols:['Nombre','Descripción','Categoría','Unidad','Proveedor habitual','Último precio'],
+    rows:function(){return D.me.map(function(m){
+      var ult=D.mep.filter(function(x){return x.m===m.id;}).sort(function(a,b){return a.f.localeCompare(b.f);}).pop();
+      return [m.n,m.d||'',_nm(D.cme,m.c),m.u,_nm(D.pvs,m.pv),ult?ult.v:''];
+    });}},
+  {id:'histPreciosEmpaques',cat:['catalogo','todo'],label:'Historial de precios de empaque',hasPeriod:true,
+    cols:['Empaque','Precio','Vigente desde'],
+    rows:function(from,to){return D.mep.filter(function(x){return _inPeriod(x.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(x){return [_nm(D.me,x.m),x.v,fmtD(x.f)];});}},
+  {id:'pedidos',cat:['ventas','todo'],label:'Pedidos',hasPeriod:true,
+    cols:['N° de pedido','Cliente','Fecha','Servicio de envío','Costo de envío','Envío cobrado al cliente','Total del pedido','Estado de cobro'],
+    rows:function(from,to){return D.ped.filter(function(p){return _inPeriod(p.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(p){
+      var est=pedEst(p.id);var estLbl=est==='anulado'?'Anulado':est==='cob'?'Cobrado':est==='par'?'Parcial':'Sin cobrar';
+      return [_pedNumStr(p),_nm(D.cli,p.cl),fmtD(p.f),_nm(D.svs,p.sv),p.ce||0,p.pe||0,pedTot(p.id),estLbl];
+    });}},
+  {id:'ventasDetalladas',cat:['ventas','todo'],label:'Ventas detalladas',hasPeriod:true,
+    cols:['Fecha','N° de pedido','Cliente','Producto','Categoría de producto','Cantidad','Precio unitario','Subtotal','Servicio de envío','Estado de cobro'],
+    rows:function(from,to){var out=[];D.ped.filter(function(p){return !p.anulado&&_inPeriod(p.f,from,to);}).forEach(function(p){
+      var est=pedEst(p.id);var estLbl=est==='cob'?'Cobrado':est==='par'?'Parcial':'Sin cobrar';
+      D.pi.filter(function(i){return i.d===p.id;}).forEach(function(i){
+        var pt=D.pt.find(function(x){return x.id===i.pt;});
+        out.push([fmtD(p.f),_pedNumStr(p),_nm(D.cli,p.cl),pt?pt.n:'',pt?_nm(D.cpt,pt.c):'',i.q,i.v,i.v*i.q,_nm(D.svs,p.sv),estLbl]);
+      });
+    });return out;}},
+  {id:'cobranzas',cat:['ventas','todo'],label:'Cobranzas',hasPeriod:true,
+    cols:['Fecha','N° de pedido','Cliente','Cuenta / Medio de cobro','Importe cobrado'],
+    rows:function(from,to){return D.cob.filter(function(c){return !c.anulado&&_inPeriod(c.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(c){
+      var p=D.ped.find(function(x){return x.id===c.d;});
+      return [fmtD(c.f),p?_pedNumStr(p):'',p?_nm(D.cli,p.cl):'',_nm(D.cus,c.cu),c.v];
+    });}},
+  {id:'clientes',cat:['clientes','todo'],label:'Clientes',hasPeriod:false,
+    cols:['Nombre','Tipo','Teléfono','Pedidos históricos'],
+    rows:function(){return D.cli.map(function(c){
+      var n=D.ped.filter(function(p){return p.cl===c.id&&!p.anulado;}).length;
+      return [c.n,c.may?'Mayorista':'Minorista',c.tel||'',n];
+    });}},
+  {id:'proveedores',cat:['proveedores','todo'],label:'Proveedores',hasPeriod:false,
+    cols:['Nombre','Teléfono','Email'],
+    rows:function(){return D.pvs.map(function(p){return [p.n,p.tel||'',p.mail||''];});}},
+  {id:'gastosFijos',cat:['finanzas','todo'],label:'Gastos fijos',hasPeriod:true,
+    cols:['Categoría','Importe','Período'],
+    rows:function(from,to){return D.gi.filter(function(g){return _inPeriodYM(g.p,from,to);}).sort(function(a,b){return a.p.localeCompare(b.p);}).map(function(g){return [_nm(D.cgi,g.c),g.v,perLbl(g.p)];});}},
+  {id:'personal',cat:['personal','todo'],label:'Personal',hasPeriod:false,
+    cols:['Nombre','Rol','Activo','Valor hora'],
+    rows:function(){return D.emp.map(function(e){return [e.n,e.rol||'',e.activo?'Sí':'No',e.valorHora||0];});}},
+  {id:'horasTrabajadas',cat:['personal','todo'],label:'Horas trabajadas',hasPeriod:true,
+    cols:['Empleado','Fecha','Horas','Estado','Fecha de pago'],
+    rows:function(from,to){return (D.horas||[]).filter(function(h){return _inPeriod(h.fecha,from,to);}).sort(function(a,b){return a.fecha.localeCompare(b.fecha);}).map(function(h){
+      return [_nm(D.emp,h.em),fmtD(h.fecha),h.horas,h.estado==='liquidado'?'Liquidada':'Pendiente',h.fechaPago?fmtD(h.fechaPago):''];
+    });}},
+  {id:'pagosPersonal',cat:['personal','todo'],label:'Pagos al personal',hasPeriod:true,
+    cols:['Fecha de pago','Empleado','Concepto','Importe','Nota'],
+    rows:function(from,to){var out=[];(D.pagosPersonal||[]).filter(function(p){return _inPeriod(p.fecha,from,to);}).sort(function(a,b){return a.fecha.localeCompare(b.fecha);}).forEach(function(p){
+      (p.conceptos||[]).forEach(function(c){out.push([fmtD(p.fecha),_nm(D.emp,p.em),conceptoNombre(c.concepto),c.importe||0,p.nota||'']);});
+    });return out;}}
+];
+
+function openExportCenter(){
+  EXP={step:1,catId:null,sel:{},periodo:'todo',desde:'',hasta:'',formato:'excel',periodoSkipped:false};
+  go('export');
+}
+
+function selectExportCat(id){
+  EXP.catId=id;EXP.sel={};
+  EXPORT_DATASETS.forEach(function(ds){if(ds.cat.indexOf(id)>=0)EXP.sel[ds.id]=true;});
+  EXP.step=2;renderExport();
+}
+function toggleExportDs(id){EXP.sel[id]=!EXP.sel[id];renderExport();}
+function advanceFromExportStep2(){
+  var dsList=EXPORT_DATASETS.filter(function(ds){return EXP.sel[ds.id];});
+  if(!dsList.length)return;
+  var needsPeriod=dsList.some(function(ds){return ds.hasPeriod;});
+  if(needsPeriod){EXP.step=3;EXP.periodoSkipped=false;}
+  else {EXP.periodo='todo';EXP.step=4;EXP.periodoSkipped=true;}
+  renderExport();
+}
+function setExportPeriodo(id){EXP.periodo=id;renderExport();}
+
+function renderExport(){
+  if(!EXP){openExportCenter();return;}
+  var st=EXP.step;
+  var back=st===1?"go('mas')":(st===4&&EXP.periodoSkipped?"EXP.step=2;renderExport()":"EXP.step--;renderExport()");
+  var backLbl=st===1?'Más':'Atrás';
+  $('H').innerHTML='<div class="hd"><button class="bb" onclick="'+back+'">← '+esc(backLbl)+'</button><div class="hr"><div><div class="ht">Exportar datos</div></div></div></div>';
+  var h='<div class="p">'+dtsDots(st,4);
+
+  if(st===1){
+    h+='<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">¿Qué querés exportar?</div>';
+    h+='<p style="font-size:13px;color:var(--t2);margin-bottom:14px">Elegí una categoría para armar tu archivo</p>';
+    h+='<div class="bx" style="padding:0">';
+    EXPORT_CATS.forEach(function(c,i){
+      var sep=i<EXPORT_CATS.length-1?'border-bottom:1px solid var(--bd);':'';
+      h+='<div class="li cl" style="border:none;border-radius:0;margin:0;'+sep+'box-shadow:none" onclick="selectExportCat(\''+c.id+'\')">'
+        +'<div class="la">'+initAv(c.t)+'</div><div class="lb"><div class="ln">'+esc(c.t)+'</div><div class="lm">'+esc(c.s)+'</div></div>'
+        +'</div>';
+    });
+    h+='</div>';
+  }
+
+  if(st===2){
+    var dsList=EXPORT_DATASETS.filter(function(ds){return ds.cat.indexOf(EXP.catId)>=0;});
+    var catObj=EXPORT_CATS.find(function(c){return c.id===EXP.catId;});
+    h+='<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">'+esc(catObj?catObj.t:'')+'</div>';
+    h+='<p style="font-size:13px;color:var(--t2);margin-bottom:14px">Destildá lo que no quieras incluir</p>';
+    h+='<div class="bx" style="padding:0">';
+    dsList.forEach(function(ds,i){
+      var sep=i<dsList.length-1?'border-bottom:1px solid var(--bd);':'';
+      var checked=EXP.sel[ds.id]?'checked':'';
+      h+='<div class="li cl" style="border:none;border-radius:0;margin:0;'+sep+'box-shadow:none" onclick="toggleExportDs(\''+ds.id+'\')">'
+        +'<div class="lb"><div class="ln">'+esc(ds.label)+'</div></div>'
+        +'<input type="checkbox" '+checked+' onclick="event.stopPropagation();toggleExportDs(\''+ds.id+'\')" style="width:20px;height:20px;accent-color:var(--br);flex-shrink:0">'
+        +'</div>';
+    });
+    h+='</div>';
+    var anySel=dsList.some(function(ds){return EXP.sel[ds.id];});
+    h+='<button class="btn bp" style="margin-top:16px" '+(anySel?'':'disabled')+' onclick="advanceFromExportStep2()">Siguiente →</button>';
+  }
+
+  if(st===3){
+    var PERIODS=[['hoy','Hoy'],['semana','Esta semana'],['mes','Este mes'],['mesAnterior','Mes anterior'],['3m','Últimos 3 meses'],['6m','Últimos 6 meses'],['12m','Últimos 12 meses'],['todo','Todo'],['personalizado','Personalizado']];
+    h+='<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">¿De qué período?</div>';
+    h+='<p style="font-size:13px;color:var(--t2);margin-bottom:14px">Por defecto incluimos todo el historial</p>';
+    h+='<div class="ch">';
+    PERIODS.forEach(function(p){h+='<button class="cp'+(EXP.periodo===p[0]?' on':'')+'" onclick="setExportPeriodo(\''+p[0]+'\')">'+p[1]+'</button>';});
+    h+='</div>';
+    if(EXP.periodo==='personalizado'){
+      h+='<div class="fg" style="margin-top:12px"><label class="fl">Desde</label><input class="fi" type="date" value="'+(EXP.desde||'')+'" onchange="EXP.desde=this.value"></div>';
+      h+='<div class="fg"><label class="fl">Hasta</label><input class="fi" type="date" value="'+(EXP.hasta||'')+'" onchange="EXP.hasta=this.value"></div>';
+    }
+    h+='<button class="btn bp" style="margin-top:16px" onclick="EXP.step=4;EXP.periodoSkipped=false;renderExport()">Siguiente →</button>';
+  }
+
+  if(st===4){
+    h+='<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px;font-family:DM Sans,sans-serif">¿En qué formato?</div>';
+    h+='<div class="ch" style="margin-bottom:6px">';
+    h+='<button class="cp'+(EXP.formato==='excel'?' on':'')+'" onclick="EXP.formato=\'excel\';renderExport()">Excel (.xlsx)</button>';
+    h+='<button class="cp'+(EXP.formato==='csv'?' on':'')+'" onclick="EXP.formato=\'csv\';renderExport()">CSV</button>';
+    h+='<button class="cp" disabled style="opacity:.45;cursor:default" title="Próximamente">Google Sheets</button>';
+    h+='</div>';
+    h+='<p style="font-size:12px;color:var(--t3);margin-bottom:16px">'+(EXP.formato==='excel'?'La mejor opción si vas a abrir esto en la computadora o mandárselo a tu contador.':'Genera un archivo de texto simple, ideal para importar en otro sistema.')+'</p>';
+    h+='<button class="btn bp" onclick="generateExport()">Generar archivo</button>';
+  }
+
+  h+='</div>';
+  setC(h);
+}
+
+function _periodLabel(id,range){
+  var LBL={hoy:'Hoy',semana:'Esta semana',mes:'Este mes',mesAnterior:'Mes anterior','3m':'Últimos 3 meses','6m':'Últimos 6 meses','12m':'Últimos 12 meses',todo:'Todo el historial'};
+  if(id==='personalizado')return (range.from?fmtD(range.from):'inicio')+' a '+(range.to?fmtD(range.to):'hoy');
+  return LBL[id]||'Todo el historial';
+}
+function expPeriodRange(id){
+  var today=new Date();var todayStr=toStr();
+  function iso(d){return d.toISOString().split('T')[0];}
+  if(id==='hoy')return{from:todayStr,to:todayStr};
+  if(id==='semana'){var day=(today.getDay()+6)%7;var mon=new Date(today);mon.setDate(today.getDate()-day);return{from:iso(mon),to:todayStr};}
+  if(id==='mes'){var f=new Date(today.getFullYear(),today.getMonth(),1);return{from:iso(f),to:todayStr};}
+  if(id==='mesAnterior'){var f2=new Date(today.getFullYear(),today.getMonth()-1,1);var l2=new Date(today.getFullYear(),today.getMonth(),0);return{from:iso(f2),to:iso(l2)};}
+  if(id==='3m'){var f3=new Date(today);f3.setMonth(f3.getMonth()-3);return{from:iso(f3),to:todayStr};}
+  if(id==='6m'){var f6=new Date(today);f6.setMonth(f6.getMonth()-6);return{from:iso(f6),to:todayStr};}
+  if(id==='12m'){var f12=new Date(today);f12.setMonth(f12.getMonth()-12);return{from:iso(f12),to:todayStr};}
+  return{from:null,to:null}; // 'todo'
+}
+function _slug(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'')||'Datos';}
+
+function _assertExportAllowed(){
+  // Traba de seguridad: sin sesión activa no se genera nada. D siempre
+  // corresponde al usuario autenticado (ver loadD()), así que esto alcanza
+  // para garantizar que nunca se exporten datos de otro negocio.
+  if(!_currentUserId){showToast('❌ Tenés que iniciar sesión para exportar');return false;}
+  if(!D){showToast('❌ No hay datos cargados todavía');return false;}
+  return true;
+}
+
+function generateExport(){
+  if(!_assertExportAllowed())return;
+  var dsIds=Object.keys(EXP.sel).filter(function(k){return EXP.sel[k];});
+  if(!dsIds.length){showToast('❌ Elegí al menos un dato para exportar');return;}
+  var range=EXP.periodo==='personalizado'?{from:EXP.desde||null,to:EXP.hasta||null}:expPeriodRange(EXP.periodo);
+  var datasets=dsIds.map(function(id){return EXPORT_DATASETS.find(function(d){return d.id===id;});}).filter(Boolean);
+  var catLbl=(EXPORT_CATS.find(function(c){return c.id===EXP.catId;})||{}).t||'Exportación';
+  var periodLbl=_periodLabel(EXP.periodo,range);
+  var negNombre=(D.neg&&D.neg.nombre)||'Mi negocio';
+
+  var sheets=[];
+  sheets.push({name:'Resumen',cols:['Campo','Valor'],rows:[
+    ['Negocio',negNombre],
+    ['Exportación',catLbl],
+    ['Período',periodLbl],
+    ['Generado el',fmtD(toStr())],
+    ['Datos incluidos',datasets.map(function(d){return d.label;}).join(', ')]
+  ]});
+  datasets.forEach(function(ds){sheets.push({name:ds.label,cols:ds.cols,rows:ds.rows(range.from,range.to)});});
+
+  var fname='Gula_'+_slug(catLbl)+'_'+_slug(periodLbl);
+  if(EXP.formato==='csv'){_downloadCSVBundle(sheets,fname);}
+  else{_downloadXLSX(sheets,fname);}
+  showToast('✅ Archivo generado');
+}
+
+function _downloadXLSX(sheets,fname){
+  var wb=XLSX.utils.book_new();
+  var usedNames=[];
+  sheets.forEach(function(sh){
+    var aoa=[sh.cols].concat(sh.rows);
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=sh.cols.map(function(c,ci){
+      var maxLen=String(c).length;
+      sh.rows.forEach(function(r){var v=r[ci];var l=(v==null?'':String(v)).length;if(l>maxLen)maxLen=l;});
+      return {wch:Math.min(Math.max(maxLen+2,10),40)};
+    });
+    var base=sh.name.replace(/[\\/?*\[\]:]/g,'').slice(0,31)||'Hoja';
+    var name=base,n=1;
+    while(usedNames.indexOf(name)>=0){n++;name=(base.slice(0,28)+'_'+n);}
+    usedNames.push(name);
+    XLSX.utils.book_append_sheet(wb,ws,name);
+  });
+  XLSX.writeFile(wb,fname+'.xlsx');
+}
+function _csvString(cols,rows){
+  var escv=function(v){if(v==null)v='';v=String(v);if(/[",;\n]/.test(v))v='"'+v.replace(/"/g,'""')+'"';return v;};
+  var lines=[cols.map(escv).join(';')]; // separador ; porque Excel/Numbers en AR usa , como decimal
+  rows.forEach(function(r){lines.push(r.map(escv).join(';'));});
+  return '\uFEFF'+lines.join('\r\n');
+}
+function _triggerBlobDownload(blob,filename){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+}
+function _downloadCSVBundle(sheets,fname){
+  var dataSheets=sheets.filter(function(s){return s.name!=='Resumen';});
+  if(dataSheets.length<=1){
+    var only=dataSheets[0]||sheets[0];
+    _triggerBlobDownload(new Blob([_csvString(only.cols,only.rows)],{type:'text/csv;charset=utf-8;'}),fname+'.csv');
+    return;
+  }
+  var zip=new JSZip();
+  var usedNames=[];
+  sheets.forEach(function(sh){
+    var base=_slug(sh.name),n=1,name=base;
+    while(usedNames.indexOf(name)>=0){n++;name=base+'_'+n;}
+    usedNames.push(name);
+    zip.file(name+'.csv',_csvString(sh.cols,sh.rows));
+  });
+  zip.generateAsync({type:'blob'}).then(function(blob){_triggerBlobDownload(blob,fname+'.zip');});
 }
 
 // ═════════════════════════════════════════════════════
@@ -5563,6 +5869,7 @@ function render(){
   else if(SC==='createMP')renderCreateMP();
   else if(SC==='createME')renderCreateME();
   else if(SC==='mas')renderMas();
+  else if(SC==='export')renderExport();
   else if(SC==='clientes')renderClientes();
   else if(SC==='createCliente')renderCreateCliente();
   else if(SC==='cliDet')renderCliDet();
