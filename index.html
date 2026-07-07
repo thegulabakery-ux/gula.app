@@ -3686,6 +3686,10 @@ function renderCreateReceta(){
   var h='<div class="p">';
   // Nombre editable
   h+='<div class="fg" style="margin-bottom:14px"><label class="fl">Nombre del producto</label><input class="fi" id="pt-name-edit" value="'+esc(pt.n)+'" placeholder="Nombre del producto" oninput="savePtName(this.value)" style="font-size:15px;font-weight:600"></div>';
+  // Categoría editable — mismo picklist que en el alta
+  var catOptsEdit='<option value="">— Sin categoría —</option>'+(D.cpt||[]).slice().sort(function(a,b){return a.n.localeCompare(b.n,'es');}).map(function(c){return '<option value="'+c.id+'"'+(c.id===pt.c?' selected':'')+'>'+ptEmoji(c.id)+' '+esc(c.n)+'</option>';}).join('');
+  h+='<div class="fg" style="margin-bottom:14px"><label class="fl">Categoría</label><select class="fs" id="pt-cat-edit" onchange="updPtCat(\''+pt.id+'\',this.value)">'+catOptsEdit+'<option value="__new__">+ Nueva categoría...</option></select></div>';
+  h+='<div id="pt-cat-edit-new" style="display:none;margin:-6px 0 14px"><div style="display:flex;gap:8px"><input class="fi" id="pt-cat-edit-n" placeholder="Nombre de la nueva categoría" style="flex:1;margin-bottom:0"><button class="btn bs2" style="flex-shrink:0;padding:0 14px" onclick="hidePtCatEditNew()">Cancelar</button><button class="btn bp" style="flex-shrink:0;padding:0 16px" onclick="savePtCatFromDet(\''+pt.id+'\')">Crear</button></div></div>';
   // Summary card
   var yld=pt.yields||1;
   var costPerUnit=yld>1?Math.round(co/yld):co;
@@ -6073,7 +6077,11 @@ function updPtCat(ptId,val){
   var pt=D.pt.find(function(p){return p.id===ptId;});
   if(pt){pt.c=val;saveD();}
 }
-function hidePtCatEditNew(){var d=$('pt-cat-edit-new');if(d)d.style.display='none';}
+function hidePtCatEditNew(){
+  var d=$('pt-cat-edit-new');if(d)d.style.display='none';
+  var sel=$('pt-cat-edit');
+  if(sel&&sel.value==='__new__'){var pt=D.pt.find(function(p){return p.id===NRC.ptId;});sel.value=pt?(pt.c||''):'';}
+}
 function savePtCatFromDet(ptId){
   var n=($('pt-cat-edit-n')&&$('pt-cat-edit-n').value||'').trim();
   if(!n){alert('Ingresá un nombre');return;}
