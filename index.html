@@ -4196,21 +4196,48 @@ function _pedNumStr(p){if(p&&p.num){var anio=(p.f||toStr()).split('-')[0];return
 function _inPeriod(dateStr,from,to){if(!dateStr)return false;if(!from&&!to)return true;if(from&&dateStr<from)return false;if(to&&dateStr>to)return false;return true;}
 function _inPeriodYM(pStr,from,to){if(!pStr)return false;if(!from&&!to)return true;var f=from?from.slice(0,7):null,t=to?to.slice(0,7):null;if(f&&pStr<f)return false;if(t&&pStr>t)return false;return true;}
 
+// ---- Helpers de costo y margen (reutilizan costo()/latMp()/latMe() ya existentes) ----
+function _rnd(n){return Math.round((n||0)*100)/100;}
+function _pct(num,den){return den?_rnd(num/den*100):0;}
+function _costoUnitPT(ptId){var pt=D.pt.find(function(p){return p.id===ptId;});var yld=(pt&&pt.yields)||1;return costo(ptId)/yld;}
+function _costoMPUnitPT(ptId){var pt=D.pt.find(function(p){return p.id===ptId;});var yld=(pt&&pt.yields)||1;var t=D.rec.filter(function(r){return r.pt===ptId&&r.t==='MP';}).reduce(function(s,r){return s+latMp(r.i)*r.q;},0);return t/yld;}
+function _costoMEUnitPT(ptId){var pt=D.pt.find(function(p){return p.id===ptId;});var yld=(pt&&pt.yields)||1;var t=D.rec.filter(function(r){return r.pt===ptId&&r.t==='ME';}).reduce(function(s,r){return s+latMe(r.i)*r.q;},0);return t/yld;}
+function _precioAt(list,id,date){
+  var antes=list.filter(function(p){return p.m===id&&p.f<=date;}).sort(function(a,b){return b.f.localeCompare(a.f);});
+  if(antes.length)return antes[0].v;
+  var cualquiera=list.filter(function(p){return p.m===id;}).sort(function(a,b){return a.f.localeCompare(b.f);}); // sin precio previo a esa fecha: se usa el más antiguo disponible
+  return cualquiera.length?cualquiera[0].v:0;
+}
+function _precioMpAt(id,date){return _precioAt(D.mpp,id,date);}
+function _precioMeAt(id,date){return _precioAt(D.mep,id,date);}
+function _costoRecetaAt(ptId,date){
+  var pt=D.pt.find(function(p){return p.id===ptId;});var yld=(pt&&pt.yields)||1;
+  var total=D.rec.filter(function(r){return r.pt===ptId;}).reduce(function(s,r){return s+(r.t==='MP'?_precioMpAt(r.i,date):_precioMeAt(r.i,date))*r.q;},0);
+  return total/yld;
+}
+
 var EXPORT_DATASETS=[
   {id:'productos',cat:['catalogo','todo'],label:'Productos',hasPeriod:false,
-    cols:['Nombre','Categoría','Precio de venta','Rinde (u. por receta)','Última actualización de precio'],
+    cols:['Nombre','Categoría','Precio de venta','Rinde (u. por receta)','Última actualización de precio','Costo Receta','Margen Bruto [abs]','Margen Bruto [%]'],
     rows:function(){return D.pt.map(function(p){
       var ult=D.ptp.filter(function(x){return x.pt===p.id;}).sort(function(a,b){return a.f.localeCompare(b.f);}).pop();
-      return [p.n,_nm(D.cpt,p.c),p.v,p.yields||1,ult?fmtD(ult.f):''];
+      var costoU=_rnd(_costoUnitPT(p.id));var margen=_rnd(p.v-costoU);
+      return [p.n,_nm(D.cpt,p.c),p.v,p.yields||1,ult?fmtD(ult.f):'',costoU,margen,_pct(margen,p.v)];
     });}},
   {id:'histPreciosProductos',cat:['catalogo','todo'],label:'Historial de precios de productos',hasPeriod:true,
-    cols:['Producto','Precio','Vigente desde'],
-    rows:function(from,to){return D.ptp.filter(function(x){return _inPeriod(x.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(x){return [_nm(D.pt,x.pt),x.v,fmtD(x.f)];});}},
+    cols:['Producto','Precio','Vigente desde','Costo Receta','Margen Bruto [abs]','Margen Bruto [%]'],
+    rows:function(from,to){return D.ptp.filter(function(x){return _inPeriod(x.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(x){
+      var costoU=_rnd(_costoRecetaAt(x.pt,x.f));var margen=_rnd(x.v-costoU);
+      return [_nm(D.pt,x.pt),x.v,fmtD(x.f),costoU,margen,_pct(margen,x.v)];
+    });}},
   {id:'recetas',cat:['catalogo','todo'],label:'Recetas',hasPeriod:false,
-    cols:['Producto','Tipo de insumo','Insumo','Cantidad','Unidad'],
+    cols:['Producto','Tipo de insumo','Insumo','Cantidad','Unidad','Costo unitario de insumo actual','Unidad de costo del insumo','Costo en receta','Rinde (u. por receta)','Costo por unidad de la receta'],
     rows:function(){return D.rec.map(function(r){
       var esMP=r.t==='MP';var src=esMP?D.mp:D.me;var it=src.find(function(x){return x.id===r.i;});
-      return [_nm(D.pt,r.pt),esMP?'Materia prima':'Empaque',it?it.n:'',r.q,it?it.u:''];
+      var costoUnitInsumo=esMP?latMp(r.i):latMe(r.i);
+      var costoEnReceta=_rnd(r.q*costoUnitInsumo);
+      var pt=D.pt.find(function(x){return x.id===r.pt;});var yld=(pt&&pt.yields)||1;
+      return [_nm(D.pt,r.pt),esMP?'Materia prima':'Empaque',it?it.n:'',r.q,it?it.u:'','$/'+(it?it.u:''),costoEnReceta,yld,_rnd(costoEnReceta/yld)];
     });}},
   {id:'ingredientes',cat:['catalogo','todo'],label:'Ingredientes',hasPeriod:false,
     cols:['Nombre','Categoría','Unidad','Proveedor habitual','Último precio','Fecha de último precio'],
@@ -4231,18 +4258,29 @@ var EXPORT_DATASETS=[
     cols:['Empaque','Precio','Vigente desde'],
     rows:function(from,to){return D.mep.filter(function(x){return _inPeriod(x.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(x){return [_nm(D.me,x.m),x.v,fmtD(x.f)];});}},
   {id:'pedidos',cat:['ventas','todo'],label:'Pedidos',hasPeriod:true,
-    cols:['N° de pedido','Cliente','Fecha','Servicio de envío','Costo de envío','Envío cobrado al cliente','Total del pedido','Estado de cobro'],
+    cols:['N° de pedido','Cliente','Tipo cliente','Fecha','Servicio de envío','Costo de envío','Envío cobrado al cliente','Total del pedido','Costo de Ingrediente','Costo de Material de empaque','Margen ganancia pedido','Margen ganancia pedido [%]','Estado de cobro'],
     rows:function(from,to){return D.ped.filter(function(p){return _inPeriod(p.f,from,to);}).sort(function(a,b){return a.f.localeCompare(b.f);}).map(function(p){
       var est=pedEst(p.id);var estLbl=est==='anulado'?'Anulado':est==='cob'?'Cobrado':est==='par'?'Parcial':'Sin cobrar';
-      return [_pedNumStr(p),_nm(D.cli,p.cl),fmtD(p.f),_nm(D.svs,p.sv),p.ce||0,p.pe||0,pedTot(p.id),estLbl];
+      var cl=D.cli.find(function(x){return x.id===p.cl;});
+      var items=D.pi.filter(function(i){return i.d===p.id;});
+      var costoIng=_rnd(items.reduce(function(s,i){return s+i.q*_costoMPUnitPT(i.pt);},0));
+      var costoEmp=_rnd(items.reduce(function(s,i){return s+i.q*_costoMEUnitPT(i.pt);},0));
+      var total=pedTot(p.id);
+      var margen=_rnd(total-costoIng-costoEmp-(p.ce||0));
+      return [_pedNumStr(p),_nm(D.cli,p.cl),cl&&cl.may?'Mayorista':'Minorista',fmtD(p.f),_nm(D.svs,p.sv),p.ce||0,p.pe||0,total,costoIng,costoEmp,margen,_pct(margen,total),estLbl];
     });}},
   {id:'ventasDetalladas',cat:['ventas','todo'],label:'Ventas detalladas',hasPeriod:true,
-    cols:['Fecha','N° de pedido','Cliente','Producto','Categoría de producto','Cantidad','Precio unitario','Subtotal','Servicio de envío','Estado de cobro'],
+    cols:['Fecha','N° de pedido','Cliente','Tipo cliente','Producto','Categoría de producto','Cantidad','Precio unitario','Subtotal','Costo de Ingrediente','Costo de Material de empaque','Margen ganancia','Margen ganancia [%]','Servicio de envío','Estado de cobro'],
     rows:function(from,to){var out=[];D.ped.filter(function(p){return !p.anulado&&_inPeriod(p.f,from,to);}).forEach(function(p){
       var est=pedEst(p.id);var estLbl=est==='cob'?'Cobrado':est==='par'?'Parcial':'Sin cobrar';
+      var cl=D.cli.find(function(x){return x.id===p.cl;});
       D.pi.filter(function(i){return i.d===p.id;}).forEach(function(i){
         var pt=D.pt.find(function(x){return x.id===i.pt;});
-        out.push([fmtD(p.f),_pedNumStr(p),_nm(D.cli,p.cl),pt?pt.n:'',pt?_nm(D.cpt,pt.c):'',i.q,i.v,i.v*i.q,_nm(D.svs,p.sv),estLbl]);
+        var subtotal=i.v*i.q;
+        var costoIng=_rnd(i.q*_costoMPUnitPT(i.pt));
+        var costoEmp=_rnd(i.q*_costoMEUnitPT(i.pt));
+        var margen=_rnd(subtotal-costoIng-costoEmp);
+        out.push([fmtD(p.f),_pedNumStr(p),_nm(D.cli,p.cl),cl&&cl.may?'Mayorista':'Minorista',pt?pt.n:'',pt?_nm(D.cpt,pt.c):'',i.q,i.v,subtotal,costoIng,costoEmp,margen,_pct(margen,subtotal),_nm(D.svs,p.sv),estLbl]);
       });
     });return out;}},
   {id:'cobranzas',cat:['ventas','todo'],label:'Cobranzas',hasPeriod:true,
@@ -4252,10 +4290,10 @@ var EXPORT_DATASETS=[
       return [fmtD(c.f),p?_pedNumStr(p):'',p?_nm(D.cli,p.cl):'',_nm(D.cus,c.cu),c.v];
     });}},
   {id:'clientes',cat:['clientes','todo'],label:'Clientes',hasPeriod:false,
-    cols:['Nombre','Tipo','Teléfono','Pedidos históricos'],
+    cols:['Nombre / Razón social','Tipo','Teléfono','Email','CUIT','Dirección','Localidad','Código postal','N° de cliente','Pedidos históricos'],
     rows:function(){return D.cli.map(function(c){
       var n=D.ped.filter(function(p){return p.cl===c.id&&!p.anulado;}).length;
-      return [c.n,c.may?'Mayorista':'Minorista',c.tel||'',n];
+      return [c.n,c.may?'Mayorista':'Minorista',c.tel||'',c.mail||'',c.cuit||'',c.dir||'',c.loc||'',c.cp||'',c.num||'',n];
     });}},
   {id:'proveedores',cat:['proveedores','todo'],label:'Proveedores',hasPeriod:false,
     cols:['Nombre','Teléfono','Email'],
