@@ -4237,7 +4237,7 @@ var EXPORT_DATASETS=[
       var costoUnitInsumo=esMP?latMp(r.i):latMe(r.i);
       var costoEnReceta=_rnd(r.q*costoUnitInsumo);
       var pt=D.pt.find(function(x){return x.id===r.pt;});var yld=(pt&&pt.yields)||1;
-      return [_nm(D.pt,r.pt),esMP?'Materia prima':'Empaque',it?it.n:'',r.q,it?it.u:'','$/'+(it?it.u:''),costoEnReceta,yld,_rnd(costoEnReceta/yld)];
+      return [_nm(D.pt,r.pt),esMP?'Materia prima':'Empaque',it?it.n:'',r.q,it?it.u:'',costoUnitInsumo,'$/'+(it?it.u:''),costoEnReceta,yld,_rnd(costoEnReceta/yld)];
     });}},
   {id:'ingredientes',cat:['catalogo','todo'],label:'Ingredientes',hasPeriod:false,
     cols:['Nombre','Categoría','Unidad','Proveedor habitual','Último precio','Fecha de último precio'],
