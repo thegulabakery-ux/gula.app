@@ -5254,6 +5254,57 @@ function ganPorClienteHorizonte(repN){
   peds.forEach(function(p){byCl[p.cl]=(byCl[p.cl]||0)+pedGan(p.id);});
   return Object.keys(byCl).map(function(k){var cl=D.cli.find(function(x){return x.id===k;});return{n:cl?cl.n:'(eliminado)',v:byCl[k]};}).sort(function(a,b){return b.v-a.v;}).slice(0,8);
 }
+// ── RENTABILIDAD DE ENVÍOS ─────────────────────────────
+// Nota de arquitectura: estas funciones aíslan el cálculo de rentabilidad
+// de envíos del resto de Reportes para poder extender a futuro (por cliente,
+// por zona, por tipo de entrega) agregando un groupBy sin tocar el cálculo base.
+function envioClasificar(p){
+  var ce=p.ce||0,pe=p.pe||0;
+  if(pe>ce)return'margen';
+  if(pe===ce)return'exacto';
+  if(pe===0&&ce>0)return'gratis';
+  return'parcial';
+}
+function envioPedidosBase(){return D.ped.filter(function(p){return!p.anulado&&p.sv!=='s4';});}
+function buildEnvioSeries(scale,repN){
+  var periods=repPeriodos(scale,repN);
+  var out={labels:[],costoReal:[],cobrado:[],resultado:[],pctGratis:[],pctParcial:[],pctExacto:[],pctMargen:[],nEnvios:[]};
+  var base=envioPedidosBase();
+  for(var i=0;i<periods.length;i++){
+    var per=periods[i];
+    var peds=base.filter(function(p){return p.f>=per.desde&&p.f<=per.hasta;});
+    var costo=peds.reduce(function(s,p){return s+(p.ce||0);},0);
+    var cobr=peds.reduce(function(s,p){return s+(p.pe||0);},0);
+    var cats={gratis:0,parcial:0,exacto:0,margen:0};
+    peds.forEach(function(p){cats[envioClasificar(p)]++;});
+    var n=peds.length;
+    out.labels.push(per.lbl);
+    out.costoReal.push(Math.round(costo));
+    out.cobrado.push(Math.round(cobr));
+    out.resultado.push(Math.round(cobr-costo));
+    out.nEnvios.push(n);
+    out.pctGratis.push(n?Math.round(cats.gratis/n*100):0);
+    out.pctParcial.push(n?Math.round(cats.parcial/n*100):0);
+    out.pctExacto.push(n?Math.round(cats.exacto/n*100):0);
+    out.pctMargen.push(n?Math.round(cats.margen/n*100):0);
+  }
+  return out;
+}
+function envioAgregadoHorizonte(repN){
+  var desde=repHorizonteDesde(repN);
+  var peds=envioPedidosBase().filter(function(p){return p.f>=desde;});
+  var n=peds.length;
+  var costo=peds.reduce(function(s,p){return s+(p.ce||0);},0);
+  var cobr=peds.reduce(function(s,p){return s+(p.pe||0);},0);
+  return{n:n,costo:costo,cobr:cobr,avgCosto:n?costo/n:0,avgCobrado:n?cobr/n:0};
+}
+function envioMesActual(){
+  var per=curPer();
+  var peds=envioPedidosBase().filter(function(p){return p.f.indexOf(per)===0;});
+  var costo=peds.reduce(function(s,p){return s+(p.ce||0);},0);
+  var cobr=peds.reduce(function(s,p){return s+(p.pe||0);},0);
+  return{n:peds.length,costo:costo,cobr:cobr,resultado:cobr-costo,ventas:perSt(per).v};
+}
 function renderReportes(){
   var scale=SS.repScale||'mensual';
   var repN=SS.repN||6;
@@ -5293,6 +5344,43 @@ function renderReportes(){
   // ── COMPOSICIÓN DE COSTOS ──────────────────────────
   h+='<div class="sc">📦 Composición de costos</div>';
   h+='<div class="bx" style="padding:14px 10px;margin-bottom:8px;overflow:hidden"><canvas id="ch-costos" style="max-height:240px"></canvas></div>';
+
+  // ── RENTABILIDAD DE ENVÍOS ──────────────────────────
+  h+='<div class="sc">🚚 Rentabilidad de envíos</div>';
+  var envAnyEver=envioPedidosBase().length>0;
+  if(!envAnyEver){
+    h+='<div class="bx" style="margin-bottom:8px"><div style="color:var(--t3);font-size:13px;text-align:center;padding:16px 0">Todavía no hay envíos registrados para analizar.</div></div>';
+  } else {
+    var envMes=envioMesActual();
+    var eRes=envMes.resultado,eAbs=Math.abs(Math.round(eRes));
+    var eColor,eBg,eBorder,eHead;
+    if(envMes.n===0){
+      eColor='var(--t2)';eBg='var(--bd2)';eBorder='var(--bd)';eHead='No hubo envíos registrados este mes.';
+    } else if(eRes>0){
+      eColor='var(--gn)';eBg='var(--gnb)';eBorder='var(--gnr)';eHead='Este mes obtuviste una ganancia de '+fmt(eAbs)+' en los envíos.';
+    } else if(eRes<0){
+      eColor='var(--rd)';eBg='var(--rdb)';eBorder='var(--rdr)';eHead='Este mes subsidiaste los envíos por '+fmt(eAbs)+'.';
+    } else {
+      eColor='var(--t2)';eBg='var(--bd2)';eBorder='var(--bd)';eHead='Este mes recuperaste exactamente el costo de los envíos.';
+    }
+    var eImpTxt='';
+    if(envMes.n>0&&envMes.ventas){
+      var eImpPct=Math.round(Math.abs(eRes)/envMes.ventas*1000)/10;
+      eImpTxt=eRes>=0?('La ganancia por envíos representó el '+eImpPct+'% de tus ventas.'):('Los envíos representaron un costo equivalente al '+eImpPct+'% de tus ventas.');
+    }
+    h+='<div class="bx" style="margin-bottom:8px;background:'+eBg+';border-color:'+eBorder+'"><div style="font-size:15px;font-weight:700;color:'+eColor+'">'+eHead+'</div>'+(eImpTxt?'<div style="font-size:12px;color:var(--t2);margin-top:4px">'+eImpTxt+'</div>':'')+'</div>';
+
+    h+='<div class="bx" style="padding:14px 10px;margin-bottom:8px;overflow:hidden"><canvas id="ch-env-evol" style="max-height:220px"></canvas></div>';
+
+    h+='<div class="sc" style="margin-top:0">Cómo se cubrió el envío en cada pedido</div>';
+    h+='<div class="bx" style="padding:14px 10px;margin-bottom:8px;overflow:hidden"><canvas id="ch-env-dist" style="max-height:180px"></canvas></div>';
+
+    var envAgg=envioAgregadoHorizonte(repN);
+    h+='<div class="bx" style="margin-bottom:8px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
+    h+='<div><div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Costo prom. por envío</div><div style="font-size:18px;font-weight:700;color:var(--t1)">'+(envAgg.n?fmt(Math.round(envAgg.avgCosto)):'—')+'</div></div>';
+    h+='<div><div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Cobrado prom. por envío</div><div style="font-size:18px;font-weight:700;color:var(--t1)">'+(envAgg.n?fmt(Math.round(envAgg.avgCobrado)):'—')+'</div></div>';
+    h+='</div></div>';
+  }
 
   // ── GANANCIA POR PRODUCTO / POR CLIENTE ────────────
   var horizonLbl='últimos '+repN+' meses';
@@ -5361,29 +5449,72 @@ function initRepCharts(){
     });
   }
 
-  // Chart 3: Ganancia por producto (barras horizontales)
+  // Chart 3: Ganancia por producto (barras horizontales, compacto)
   var c3=document.getElementById('ch-prod-gan');
   if(c3){
     if(c3._chart)c3._chart.destroy();
     var prodData=ganPorProductoHorizonte(repN);
+    c3.parentElement.style.height=Math.max(prodData.length*26,60)+'px';
     c3._chart=new Chart(c3,{
       type:'bar',
-      data:{labels:prodData.map(function(x){return x.n;}),datasets:[{label:'Ganancia',data:prodData.map(function(x){return Math.round(x.v);}),backgroundColor:'rgba(16,185,129,.75)',borderRadius:4}]},
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},
-        scales:{x:{beginAtZero:true,ticks:{callback:function(v){return '$'+Math.round(v/1000)+'k';}}}}}
+      data:{labels:prodData.map(function(x){return x.n;}),datasets:[{label:'Ganancia',data:prodData.map(function(x){return Math.round(x.v);}),backgroundColor:'rgba(16,185,129,.75)',borderRadius:4,maxBarThickness:16,barPercentage:0.7,categoryPercentage:0.75}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{beginAtZero:true,ticks:{callback:function(v){return '$'+Math.round(v/1000)+'k';},font:{size:10}}},y:{ticks:{font:{size:11}}}}}
     });
   }
 
-  // Chart 4: Ganancia por cliente (barras horizontales)
+  // Chart 4: Ganancia por cliente (barras horizontales, compacto)
   var c4=document.getElementById('ch-cli-gan');
   if(c4){
     if(c4._chart)c4._chart.destroy();
     var cliData=ganPorClienteHorizonte(repN);
+    c4.parentElement.style.height=Math.max(cliData.length*26,60)+'px';
     c4._chart=new Chart(c4,{
       type:'bar',
-      data:{labels:cliData.map(function(x){return x.n;}),datasets:[{label:'Ganancia',data:cliData.map(function(x){return Math.round(x.v);}),backgroundColor:'rgba(200,24,79,.75)',borderRadius:4}]},
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},
-        scales:{x:{beginAtZero:true,ticks:{callback:function(v){return '$'+Math.round(v/1000)+'k';}}}}}
+      data:{labels:cliData.map(function(x){return x.n;}),datasets:[{label:'Ganancia',data:cliData.map(function(x){return Math.round(x.v);}),backgroundColor:'rgba(200,24,79,.75)',borderRadius:4,maxBarThickness:16,barPercentage:0.7,categoryPercentage:0.75}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{beginAtZero:true,ticks:{callback:function(v){return '$'+Math.round(v/1000)+'k';},font:{size:10}}},y:{ticks:{font:{size:11}}}}}
+    });
+  }
+
+  // Chart 5: Evolución costo real vs. cobrado por envíos, con resultado
+  var c5=document.getElementById('ch-env-evol');
+  if(c5){
+    if(c5._chart)c5._chart.destroy();
+    var envSeries=buildEnvioSeries(scale,repN);
+    var resColors=envSeries.resultado.map(function(v){return v>0?'#16A34A':v<0?'#DC2626':'#9CA3AF';});
+    c5._chart=new Chart(c5,{
+      type:'bar',
+      data:{labels:envSeries.labels,datasets:[
+        {label:'Costo real',data:envSeries.costoReal,backgroundColor:'rgba(245,158,11,.75)',order:2,borderRadius:3},
+        {label:'Cobrado al cliente',data:envSeries.cobrado,backgroundColor:'rgba(59,130,246,.75)',order:2,borderRadius:3},
+        {label:'Resultado',data:envSeries.resultado,type:'line',borderColor:'#9CA3AF',backgroundColor:'rgba(156,163,175,.08)',pointRadius:5,pointBackgroundColor:resColors,pointBorderColor:resColors,fill:false,tension:0.3,order:1}
+      ]},
+      options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}}},
+        scales:{y:{beginAtZero:true,ticks:{callback:function(v){return '$'+Math.round(v/1000)+'k';},maxTicksLimit:5}}}
+      }
+    });
+  }
+
+  // Chart 6: Distribución de pedidos según cobertura del envío (100% apilado)
+  var c6=document.getElementById('ch-env-dist');
+  if(c6){
+    if(c6._chart)c6._chart.destroy();
+    var envSeries2=buildEnvioSeries(scale,repN);
+    c6._chart=new Chart(c6,{
+      type:'bar',
+      data:{labels:envSeries2.labels,datasets:[
+        {label:'100% bonificado',data:envSeries2.pctGratis,backgroundColor:'rgba(220,38,38,.75)',stack:'s',borderRadius:0},
+        {label:'Subsidiado parcialmente',data:envSeries2.pctParcial,backgroundColor:'rgba(245,158,11,.75)',stack:'s',borderRadius:0},
+        {label:'Cubierto al 100%',data:envSeries2.pctExacto,backgroundColor:'rgba(156,163,175,.75)',stack:'s',borderRadius:0},
+        {label:'Con margen',data:envSeries2.pctMargen,backgroundColor:'rgba(16,185,129,.75)',stack:'s',borderRadius:0}
+      ]},
+      options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8,font:{size:10}}}},
+        scales:{
+          x:{stacked:true},
+          y:{stacked:true,beginAtZero:true,max:100,ticks:{callback:function(v){return v+'%';},maxTicksLimit:5}}
+        }
+      }
     });
   }
 }
