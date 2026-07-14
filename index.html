@@ -38,6 +38,16 @@ html,body{height:100%;background:var(--bg);font-family:'DM Sans',system-ui,sans-
 #app{width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column;position:relative;overflow:hidden}
 .scr{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:max(104px,calc(88px + env(safe-area-inset-bottom,16px)));scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .scr::-webkit-scrollbar{display:none}
+
+/* ─── AVISO DE SINCRONIZACIÓN ─── */
+/* Vive fuera de #H/#C/#N a propósito: nunca se pisa con los re-renders
+   de pantalla, así que se mantiene visible sin parpadear al navegar. */
+.sync-banner{display:none;align-items:center;gap:10px;padding:10px 20px;font-size:12.5px;line-height:1.4;font-weight:500;flex-shrink:0}
+.sync-banner-offline{background:var(--amb);color:var(--am);border-bottom:1px solid var(--amr)}
+.sync-banner-error{background:var(--rdb);color:var(--rd);border-bottom:1px solid var(--rdr)}
+.sync-banner-btn{margin-left:auto;flex-shrink:0;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#fff;font-family:'DM Sans',sans-serif}
+.sync-banner-offline .sync-banner-btn{background:var(--am)}
+.sync-banner-error .sync-banner-btn{background:var(--rd)}
 @keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .fu{animation:fu .18s cubic-bezier(.25,.46,.45,.94) forwards}
 
@@ -357,6 +367,7 @@ if (window._fbReadyCb) window._fbReadyCb();
 <div id="app">
 
   <div id="H"></div>
+  <div id="syncBanner" class="sync-banner"></div>
   <div id="C" class="scr"></div>
   <nav id="N" class="nav"></nav>
 </div>
@@ -587,10 +598,66 @@ async function loadD(){
 function saveD(){
   if(_currentUserId && window._db){
     D._ultimaActividad = new Date().toISOString(); // usado por el panel admin para "última actividad"
+    _saveInFlight++;
     window._fbSetDoc(window._fbDoc(window._db,'users',_currentUserId), D)
-      .catch(function(e){console.error('Error guardando:',e);});
+      .then(function(){
+        _saveError=false;
+        _saveInFlight--;
+        updateSyncBanner();
+      })
+      .catch(function(e){
+        console.error('Error guardando:',e);
+        _saveError=true;
+        _saveInFlight--;
+        updateSyncBanner();
+      });
   }
 }
+
+// ═════════════════════════════════════════════════════
+//  AVISO DE SINCRONIZACIÓN — sin conexión / guardado fallido
+//  D vive siempre en memoria, así que mientras la pestaña/app siga
+//  abierta no se pierde nada de lo que el usuario cargó — el riesgo
+//  real es que cierre la app antes de que eso llegue a Firestore.
+//  Este bloque avisa y reintenta automáticamente al reconectar.
+// ═════════════════════════════════════════════════════
+var _saveError = false;
+var _saveInFlight = 0;
+
+function updateSyncBanner(){
+  var el = $('syncBanner');
+  if(!el) return;
+  if(!navigator.onLine){
+    el.className='sync-banner sync-banner-offline';
+    el.innerHTML = '📶 <span><strong>Sin conexión.</strong> Conectate a WiFi o activá los datos móviles — tus cambios se guardan solos apenas vuelvas a tener señal. No cierres la app mientras tanto.</span>';
+    el.style.display='flex';
+  } else if(_saveError){
+    el.className='sync-banner sync-banner-error';
+    el.innerHTML = '⚠️ <span><strong>No se pudieron guardar tus últimos cambios.</strong> Revisá tu conexión.</span><button class="sync-banner-btn" onclick="reintentarGuardado()">Reintentar</button>';
+    el.style.display='flex';
+  } else {
+    el.style.display='none';
+  }
+}
+
+function reintentarGuardado(){
+  showToast('Reintentando guardar…');
+  saveD();
+}
+
+window.addEventListener('online', function(){
+  updateSyncBanner();
+  if(_saveError) saveD(); // reintento automático apenas vuelve la señal
+});
+window.addEventListener('offline', updateSyncBanner);
+
+// Avisa antes de cerrar/recargar si hay cambios sin confirmar guardados
+window.addEventListener('beforeunload', function(e){
+  if(!navigator.onLine || _saveError || _saveInFlight>0){
+    e.preventDefault();
+    e.returnValue='';
+  }
+});
 
 // ═════════════════════════════════════════════════════
 //  ESTADO DE CUENTA — clientes/{uid} (controlado por el admin)
@@ -6081,6 +6148,7 @@ function _bootApp(){
           if(needsSave)saveD();
           render();
           checkOnboarding();
+          updateSyncBanner();
         });
       });
     } else {
